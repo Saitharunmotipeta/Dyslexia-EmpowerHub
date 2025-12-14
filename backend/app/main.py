@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from app.database.connection import Base, engine
 from app.auth.routes import router as auth_router
 from app.learning.routes import router as learning_router
+from app.practice.routes import router as Practice_router
 
 # =========================
 # 4. DB init
@@ -37,6 +38,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 # =========================
 app.include_router(auth_router)
 app.include_router(learning_router)
+app.include_router(Practice_router)
 
 # =========================
 # 7. Static files (for audio)
