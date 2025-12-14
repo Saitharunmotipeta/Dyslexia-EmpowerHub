@@ -1,0 +1,222 @@
+ FINAL BACKEND MICROSERVICE ARCHITECTURE REPORT (FASTAPI + DOCKER)
+
+
+Dyslexia-Empower-Hub/
+└── backend/
+    ├── api-auth/
+    │   ├── app/
+    │   │   ├── main.py
+    │   │   ├── routes/
+    │   │   │   └── users.py
+    │   │   └── auth/
+    │   │       └── auth_utils.py
+    │   ├── requirements.txt
+    │   ├── Dockerfile
+    │   └── .env
+    │
+    ├── api-learning/
+    │   ├── app/
+    │   │   ├── main.py
+    │   │   ├── routes/
+    │   │   │   ├── adaptive.py
+    │   │   │   ├── learning.py
+    │   │   │   └── speech.py
+    │   │   ├── services/
+    │   │   │   ├── adaptive_engine.py
+    │   │   │   ├── learning_service.py
+    │   │   │   └── stt_service.py
+    │   │   ├── data/
+    │   │   │   └── levels.json
+    │   │   ├── utils/
+    │   │       ├── phonetics.py
+    │   │       └── tts_handler.py
+    │   ├── requirements.txt
+    │   ├── Dockerfile
+    │   └── .env
+    │
+    ├── api-progress/
+    │   ├── app/
+    │   │   ├── main.py
+    │   │   ├── routes/
+    │   │   │   └── progress.py
+    │   │   ├── services/
+    │   │   │   └── progress_service.py
+    │   ├── requirements.txt
+    │   ├── Dockerfile
+    │   └── .env
+    │
+    ├── api-evaluation/
+    │   ├── app/
+    │   │   ├── main.py
+    │   │   ├── routes/
+    │   │   │   └── evaluate.py
+    │   │   ├── models/
+    │   │   │   ├── level.py
+    │   │   │   └── word.py
+    │   ├── requirements.txt
+    │   ├── Dockerfile
+    │   └── .env
+    │
+    ├── api-chatbot/
+    │   ├── app/
+    │   │   ├── main.py
+    │   │   ├── routes/
+    │   │   │   └── chatbot.py
+    │   │   ├── services/
+    │   │       └── openrouter_service.py
+    │   ├── requirements.txt
+    │   ├── Dockerfile
+    │   └── .env
+    │
+    ├── shared/
+    │   ├── database/
+    │   │   ├── connection.py
+    │   │   └── migrations/
+    │   ├── utils/
+    │   │   └── common.py
+    │   └── softwaremodels/
+    │       ├── ffmpeg/
+    │       ├── vosk_model/
+    │       └── phenome_model/
+    │
+    ├── docker-compose.yml
+    └── README.md
+```
+
+---
+
+# 🔌 **HOW MICROSERVICES COORDINATE INSIDE DOCKER**
+
+## **1. They communicate using HTTP (NOT imports)**
+
+Every service talks to another using `httpx` or `requests`:
+
+```
+http://api-auth:8000
+http://api-learning:8000
+http://api-progress:8000
+http://api-evaluation:8000
+http://api-chatbot:8000
+```
+
+These names come from docker-compose service names.
+
+### Example:
+
+`api-learning` needs student progress:
+
+```python
+async with httpx.AsyncClient() as client:
+    res = await client.get("http://api-progress:8000/progress/123")
+```
+
+---
+
+# 🔐 **2. Authentication Flow (service → api-auth)**
+
+Any service that needs user identity calls:
+
+```
+POST http://api-auth:8000/auth/verify
+```
+
+✔ No need to duplicate JWT logic in every microservice.
+✔ One source of truth.
+
+---
+
+# 📊 **3. Progress & Learning Sync**
+
+* `api-learning` asks `api-progress` for user state
+* `api-evaluation` asks `api-learning` for word difficulty
+* `api-chatbot` fetches progress, level, and last activity from `api-progress`
+
+This creates a well-orchestrated flow.
+
+---
+
+# 🛢️ **4. Shared Database (simple approach)**
+
+All services import DB connection from `shared/database/connection.py`
+because Docker mounts `/shared` into every container.
+
+This keeps your DB unified and consistent.
+
+---
+
+# 🕸️ **5. docker-compose Networking (the magic layer)**
+
+docker-compose auto-creates an internal network:
+
+```
+api-auth
+api-learning
+api-progress
+api-evaluation
+api-chatbot
+```
+
+Each container can call each other by name — no IPs needed.
+
+---
+
+# 📡 **6. Environment Variables Standardization**
+
+Each service reads URLs like:
+
+```
+API_AUTH_URL=http://api-auth:8000
+API_PROGRESS_URL=http://api-progress:8000
+```
+
+This prevents hard-coded URLs and keeps everything clean.
+
+---
+
+# 🎯 FINAL 3-LINE SUMMARY — IS THIS EASY?
+
+1️⃣ YES — microservices look complex but Docker Compose makes all communication automatic.
+2️⃣ YES — each API stays small, clean, focused, and easy to debug.
+3️⃣ YES — this architecture makes your project look enterprise-grade without extra difficulty.
+
+---
+
+that is not how it supposed to be 
+it must be like this 
+
+Learning module architeture and workflow:
+
+1. User logs in(user table gets updated) and goes to learning module 
+2. goes to learning module and selects a level he is in  
+3. they learn that words (TTS )and do a practice each wordSTT) (the phonetics and synonemes was stored in word model)
+4. if similarity score > 70 mark it as completed and he can practice any word in that same level 
+5. after the user completes 80% of words he/she can give attempt to move to next level 
+6. if in that mock test user scores he can get access to next level words(no of attempts its score and all other parameters in level_words model)
+7. after the attempt a feed back must be given about the mistakes made and recommend what word to practice next 
+8. in term for the progress tracking the parameters to be considered are (average similarity score , total attempts, time spent to master, no of words matered per level (in numbers as well as in percentages) (here progress table get updated)
+9. as far as rewards to keep their confidentiality and momentum we need to give them rewards
+10. for recommendation and feedback run ml model to get best next word  
+in profile dashboard we need to show total words mastered each level , strak of daily login , average score , and other progress parameters as well.
+
+--everything is above is for static level module of words so for dynamic module
+
+1. we give a word as input
+2. a image is generated of that image and if word is a name display that name 
+3. show synonemes and phonetics split of that word 
+4. we should get the audio file of that(TTS)
+5. predict that word's difficulty level and its percentage of how didfficult is that
+6. advice that is suggestions how to understand that easily
+
+this is how the architecture of learning module supposed to be firts analayse this and tell me are their any flaws and get me a good flow for this make sure to include all of them and if necessary add the exttra features to make it efficient
+
+
+
+i have directory alignment different 
+
+app
+|--learning
+|        |--services
+|        |        |--tts_services.py
+|        |--routes.py
+|        |--models.py
+|        |--schemas.py
