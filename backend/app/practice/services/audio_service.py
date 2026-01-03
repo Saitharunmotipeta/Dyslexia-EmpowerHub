@@ -1,41 +1,32 @@
+from pathlib import Path
 import os
-import uuid
 from pydub import AudioSegment
 
-TEMP_UPLOAD_DIR = "temp/audio_uploads"
-TEMP_WAV_DIR = "temp/audio_wav"
+# backend/
+BASE_DIR = Path(__file__).resolve().parents[3]
 
-os.makedirs(TEMP_WAV_DIR, exist_ok=True)
+UPLOAD_DIR = BASE_DIR / "temp" / "audio_uploads"
+WAV_DIR = BASE_DIR / "temp" / "audio_wav"
+
+os.makedirs(WAV_DIR, exist_ok=True)
 
 
 def convert_to_wav(file_id: str) -> str:
     """
-    Convert uploaded audio file to WAV (16kHz, mono).
-    Returns path to wav file.
+    Find uploaded file by file_id.* and convert to mono 16k WAV.
+    Returns absolute wav file path.
     """
 
-    # Find uploaded file by file_id
-    source_file = None
-    for f in os.listdir(TEMP_UPLOAD_DIR):
-        if f.startswith(file_id):
-            source_file = os.path.join(TEMP_UPLOAD_DIR, f)
-            break
+    candidates = list(UPLOAD_DIR.glob(f"{file_id}.*"))
+    if not candidates:
+        raise FileNotFoundError("Uploaded file not found")
 
-    if not source_file:
-        raise FileNotFoundError("Uploaded audio not found")
+    source_file = candidates[0]
 
-    # Load audio
     audio = AudioSegment.from_file(source_file)
+    audio = audio.set_channels(1).set_frame_rate(16000)
 
-    # Normalize for STT
-    audio = (
-        audio.set_channels(1)        # mono
-             .set_frame_rate(16000)   # 16kHz
-    )
-
-    wav_filename = f"{file_id}.wav"
-    wav_path = os.path.join(TEMP_WAV_DIR, wav_filename)
-
+    wav_path = WAV_DIR / f"{file_id}.wav"
     audio.export(wav_path, format="wav")
 
-    return wav_path
+    return str(wav_path)

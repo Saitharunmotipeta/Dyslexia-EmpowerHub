@@ -18,6 +18,7 @@ uploads/
 softwaremodels/
 ml_model/model/*.pkl
 ml_model/data/*.xlsx
+backend/temp/audio_uploads/
 
 # Logs
 *.log

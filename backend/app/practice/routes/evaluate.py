@@ -1,19 +1,32 @@
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from app.database.connection import SessionLocal
+from app.learning.models import Word
+from app.practice.schemas.eval_schema import EvaluationRequest
+from app.practice.schemas.eval_response import EvaluationResponse
 from app.practice.services.eval_service import evaluate_similarity
 
 
-def evaluate_practice(expected_word: str, recognized_text: str):
-    try:
-        result = evaluate_similarity(
-            expected_word=expected_word,
-            recognized_text=recognized_text,
-        )
-    except Exception:
-        raise HTTPException(status_code=500, detail="Evaluation failed")
+def evaluate_practice(payload: EvaluationRequest) -> EvaluationResponse:
+    db: Session = SessionLocal()
 
-    return {
-        "expected": expected_word,
-        "recognized": recognized_text,
-        "similarity": result["similarity"],
-        "is_correct": result["is_correct"],
-    }
+    try:
+        word = db.query(Word).filter(Word.id == payload.word_id).first()
+        if not word:
+            raise HTTPException(status_code=404, detail="Word not found")
+
+        expected = word.text
+        spoken = payload.recognized_text
+
+        score, verdict = evaluate_similarity(expected, spoken)
+
+        return EvaluationResponse(
+            word_id=payload.word_id,
+            expected=expected,
+            recognized=spoken,
+            score=score,
+            is_correct=(score >= 80.0)  # business rule — tweak later
+        )
+
+    finally:
+        db.close()

@@ -1,9 +1,11 @@
-import os
+from pathlib import Path
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+# backend/
+BASE_DIR = Path(__file__).resolve().parents[3]
 
-AUDIO_RAW_DIR = os.path.join(BASE_DIR, "storage", "audio_raw")
-AUDIO_WAV_DIR = os.path.join(BASE_DIR, "storage", "audio_wav")
+# temp directories
+AUDIO_UPLOAD_DIR = BASE_DIR /"backend"/ "temp" / "audio_uploads"
+AUDIO_WAV_DIR = BASE_DIR /"backend"/ "temp" / "audio_wav"
 
-os.makedirs(AUDIO_RAW_DIR, exist_ok=True)
-os.makedirs(AUDIO_WAV_DIR, exist_ok=True)
+AUDIO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+AUDIO_WAV_DIR.mkdir(parents=True, exist_ok=True)

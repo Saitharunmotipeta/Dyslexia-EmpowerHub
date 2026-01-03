@@ -1,16 +1,14 @@
 from difflib import SequenceMatcher
 
 
-def evaluate_similarity(expected_text: str, spoken_text: str) -> dict:
+def evaluate_similarity(expected_text: str, spoken_text: str) -> tuple[float, str]:
     """
-    Compare expected text vs spoken text and return similarity score
+    Returns:
+      score_percent, verdict
     """
 
     if not expected_text or not spoken_text:
-        return {
-            "similarity": 0.0,
-            "verdict": "invalid_input",
-        }
+        return 0.0, "invalid_input"
 
     ratio = SequenceMatcher(
         None,
@@ -18,17 +16,12 @@ def evaluate_similarity(expected_text: str, spoken_text: str) -> dict:
         spoken_text.lower().strip()
     ).ratio()
 
-    similarity_percent = round(ratio * 100, 2)
+    score = round(ratio * 100, 2)
 
     verdict = (
-        "excellent" if similarity_percent >= 85 else
-        "good" if similarity_percent >= 65 else
+        "excellent" if score >= 85 else
+        "good" if score >= 65 else
         "needs_practice"
     )
 
-    return {
-        "expected": expected_text,
-        "spoken": spoken_text,
-        "similarity_percent": similarity_percent,
-        "verdict": verdict,
-    }
+    return score, verdict
