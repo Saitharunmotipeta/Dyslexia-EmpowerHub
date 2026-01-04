@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 
-from app.learning.models import LevelWord
+from app.learning.models.level_word import LevelWord
 
 
 def get_level_word(db: Session, user_id: int, word_id: int) -> LevelWord | None:

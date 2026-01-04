@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 from typing import List, Tuple
 
-from app.learning.models import Level, Word, LevelWord
+from app.learning.models.level import Level
+from app.learning.models.word import Word
+from app.learning.models.level_word import LevelWord
 
 
 def get_levels_with_stats(db: Session, user_id: int) -> List[Tuple[Level, int, int]]:

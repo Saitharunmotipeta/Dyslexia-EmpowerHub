@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.learning.models import Word, LevelWord
+from app.learning.models.word import Word
+from app.learning.models.level_word import LevelWord
 
 
 def get_words_for_level(db: Session, user_id: int, level_id: int):

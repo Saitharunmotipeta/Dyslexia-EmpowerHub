@@ -25,7 +25,7 @@ app.include_router(practice_router)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/")
-def health():
+def dyslexia():
     return {"status": "Dyslexia backend running"}
 
 @app.get("/debug-routes")

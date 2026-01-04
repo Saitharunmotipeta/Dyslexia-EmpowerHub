@@ -8,7 +8,8 @@ from app.practice.services.audio_service import convert_to_wav
 from app.practice.services.stt_service import speech_to_text_from_wav
 from app.practice.services.eval_service import evaluate_similarity
 
-from app.learning.models import Word, LevelWord
+from app.learning.models.word import Word
+from app.learning.models.level_word import LevelWord
 from app.database.connection import SessionLocal
 
 

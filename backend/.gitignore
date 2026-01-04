@@ -22,3 +22,5 @@ temp/
 
 # Logs
 *.log
+app/static
+

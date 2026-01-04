@@ -7,7 +7,7 @@ from app.auth import schemas, service
 # from app.auth.schemas import TTSRateUpdateIn
 from app.auth.utils import decode_token, get_current_user_id
 from app.auth.models import User
-from app.learning.models import Word
+from app.learning.models.word import Word
 # from app.learning.services.tts_service import generate_tts_audio
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
