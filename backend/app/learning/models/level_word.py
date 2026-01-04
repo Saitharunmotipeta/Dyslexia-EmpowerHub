@@ -16,6 +16,7 @@ class LevelWord(Base):
 
     attempts = Column(Integer, default=0)
     correct_attempts = Column(Integer, default=0)
+    highest_score = Column(Float, default=0.0)
 
     mastery_score = Column(Float, default=0.0)
     is_mastered = Column(Boolean, default=False)

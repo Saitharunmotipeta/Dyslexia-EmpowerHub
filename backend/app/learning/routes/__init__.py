@@ -1,6 +1,7 @@
 # app/learning/routes/__init__.py
 from fastapi import APIRouter, Depends, Query, Body
 from sqlalchemy.orm import Session
+from fastapi import UploadFile, File
 from typing import List
 
 
@@ -8,6 +9,7 @@ from app.database.connection import SessionLocal
 from app.auth.dependencies import get_current_user_id
 from app.learning.schemas.level import LevelOut
 from app.learning.schemas.word import WordStatusOut
+# from app.learning.routes.learning_automation import router as automation_router
 
 from .levels import (
     get_levels_handler,
@@ -15,6 +17,7 @@ from .levels import (
 )
 from app.learning.routes.words import update_word_status_handler
 from app.learning.routes.tts import tts_word_handler
+from app.learning.routes.learning_automation import learning_automation_handler
 
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
@@ -66,3 +69,15 @@ router.get("/tts/{word_id}")(
            db=Depends(get_db):
         tts_word_handler(db, word_id, pace)
 )
+
+@router.post(
+    "/learn-auto",
+    summary="Learning Automation Endpoint",
+)
+async def learn_auto(
+    level_id: int,
+    word_id: int,
+    pace: int = 60,
+    file: UploadFile = File(...)
+):
+    return await learning_automation_handler(level_id, word_id, pace, file)
