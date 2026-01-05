@@ -1,3 +1,5 @@
+# app/learning/routes/learning_automation.py
+
 import logging
 from fastapi import UploadFile, File, HTTPException
 
@@ -5,8 +7,13 @@ from app.practice.routes.upload import upload_audio
 from app.practice.services.audio_service import convert_to_wav
 from app.practice.services.stt_service import speech_to_text_from_wav
 from app.practice.services.eval_service import evaluate_similarity
-from app.learning.routes.tts import tts_word_handler
 
+# ⭐ Insights engines
+from app.insights.services.feedback_service import generate_feedback
+from app.insights.services.recommendations_service import recommend_next_step
+from app.insights.schemas import FeedbackIn   # <-- IMPORTANT
+
+from app.learning.routes.tts import tts_word_handler
 from app.learning.models.word import Word
 from app.learning.models.level_word import LevelWord
 from app.database.connection import SessionLocal
@@ -27,38 +34,37 @@ async def learning_automation_handler(
     print(f"📝 Word ID = {word_id}")
     print(f"⏩ Pace = {pace}")
 
+    # =========================
+    # 0️⃣ TTS
+    # =========================
     print("🔊 STEP 0 — Generating TTS...")
     tts_res = tts_word_handler(SessionLocal(), word_id, pace)
     tts_url = tts_res.get("audio_url")
     print(f"🎵 TTS Ready → {tts_url}")
 
     # =========================
-    # 1️⃣ SAVE USER AUDIO
+    # 1️⃣ UPLOAD
     # =========================
     print("\n📥 STEP 1 — Uploading learner audio...")
     uploaded = await upload_audio(file)
     file_id = uploaded.file_id
-    print(f"✔️ Upload complete")
     print(f"🆔 File ID = {file_id}")
 
     # =========================
-    # 2️⃣ CONVERT TO WAV
+    # 2️⃣ CONVERT
     # =========================
-    print("\n🎼 STEP 2 — Converting → WAV...")
     wav_path = convert_to_wav(file_id)
-    print(f"✔️ Converted")
     print(f"🎧 WAV Path = {wav_path}")
 
     # =========================
-    # 3️⃣ SPEECH TO TEXT
+    # 3️⃣ STT
     # =========================
-    print("\n🗣️ STEP 3 — Speech Recognition…")
     stt = speech_to_text_from_wav(wav_path)
     spoken = stt.get("text", "")
     print(f"🧠 Heard = '{spoken}'")
 
     # =========================
-    # 4️⃣ FETCH EXPECTED WORD
+    # 4️⃣ DB: EXPECTED WORD
     # =========================
     db = SessionLocal()
 
@@ -72,26 +78,42 @@ async def learning_automation_handler(
             raise HTTPException(404, "Word not found")
 
         expected = word.text
-        print("\n📖 STEP 4 — Expected Word Lookup…")
         print(f"📘 Expected = '{expected}'")
 
         # =========================
-        # 5️⃣ EVALUATE SIMILARITY
+        # 5️⃣ EVALUATE
         # =========================
-        print("\n📊 STEP 5 — Evaluating Pronunciation…")
         score, verdict = evaluate_similarity(expected, spoken)
 
         mastered_now = score >= 80
 
-        print(f"🎯 Match = {score}%")
-        print(f"⚖️ Verdict = {verdict}")
-        print(f"🏆 Mastered This Attempt = {mastered_now}")
+        print(f"🎯 Match = {score}% ({verdict})")
 
         # =========================
-        # 6️⃣ UPDATE OVERALL MASTERY
+        # 6️⃣ FEEDBACK ENGINE
         # =========================
-        print("\n🛠 STEP 6 — Updating Learning Progress…")
 
+        feedback_input = FeedbackIn(
+            word=expected,
+            spoken=spoken,
+            similarity=score,
+            attempts=1,
+            pace="custom"
+        )
+
+        feedback = generate_feedback(feedback_input)
+        print("\n💬 FEEDBACK →", feedback)
+
+        # =========================
+        # 7️⃣ RECOMMENDATION ENGINE
+        # =========================
+
+        recommendation = recommend_next_step(feedback_input)
+        print("\n🧭 RECOMMENDATION →", recommendation)
+
+        # =========================
+        # 8️⃣ UPDATE DB
+        # =========================
         level_word = db.query(LevelWord).filter(
             LevelWord.word_id == word_id
         ).first()
@@ -102,40 +124,38 @@ async def learning_automation_handler(
                 attempts=0,
                 correct_attempts=0,
                 mastery_score=0,
+                highest_score=0,
                 is_mastered=False
             )
             db.add(level_word)
 
-        # count attempts (for analytics)
         level_word.attempts += 1
         if mastered_now:
             level_word.correct_attempts += 1
 
-        # keep mastery score for insights (NOT used to gate mastery)
+        # keep historical mastery_score for analytics
         level_word.mastery_score = (
             level_word.correct_attempts / level_word.attempts
         )
 
-        # ⭐ NEW — track BEST ATTEMPT EVER
+        # update highest score logic
         if score > (level_word.highest_score or 0):
             level_word.highest_score = score
 
-        # 🧠 mastery is PERMANENT once score ≥ 80 at least once
-        if (level_word.highest_score or 0) >= 80:
-            level_word.is_mastered = True
-
+        # only highest score decides mastery
+        level_word.is_mastered = (level_word.highest_score or 0) >= 80
 
         db.commit()
 
-        print(f"📈 Attempts = {level_word.attempts}")
-        print(f"✅ Correct = {level_word.correct_attempts}")
-        print(f"⭐ Mastery Score = {round(level_word.mastery_score, 2)}")
-        print(f"🎓 Word Mastered Overall = {level_word.is_mastered}")
+        # ⭐⭐ CACHE VALUES BEFORE CLOSING SESSION ⭐⭐
+        mastery_overall = level_word.is_mastered
+        highest_score = level_word.highest_score
+        total_attempts = level_word.attempts
 
     finally:
         db.close()
 
-    print("\n✨ FLOW COMPLETE — Returning Result 🎁\n")
+    print("\n✨ FLOW COMPLETE\n")
 
     return {
         "word_id": word_id,
@@ -144,5 +164,9 @@ async def learning_automation_handler(
         "similarity": score,
         "verdict": verdict,
         "mastered_this_attempt": mastered_now,
-        "mastery_overall": level_word.is_mastered
+        "highest_score": highest_score,
+        "total_attempts": total_attempts,
+        "mastery_overall": mastery_overall,
+        "feedback": feedback,
+        "recommendation": recommendation
     }
