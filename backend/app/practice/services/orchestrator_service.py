@@ -12,6 +12,11 @@ from app.learning.models.word import Word
 from app.learning.models.level_word import LevelWord
 from app.database.connection import SessionLocal
 
+# ⭐ NEW — Insights Engine
+from app.insights.schemas import FeedbackIn
+from app.insights.services.feedback_service import generate_feedback
+from app.insights.services.recommendations_service import recommend_next_step
+
 
 async def run_practice_flow(word_id: int, file: UploadFile):
     """
@@ -95,43 +100,66 @@ async def run_practice_flow(word_id: int, file: UploadFile):
                 correct_attempts=0,
                 mastery_score=0,
                 is_mastered=False,
+                highest_score=0
             )
             db.add(level_word)
 
         level_word.attempts += 1
 
-        # Track historical correctness if you still want that data
+        # Track correctness historically (optional analytics)
         if similarity_percent >= 80:
             level_word.correct_attempts += 1
             print("🎯 Counted as CORRECT attempt")
         else:
             print("❌ Counted as INCORRECT attempt")
 
-        # Optional: still compute mastery score historically
+        # Historical ratio (for dashboards later)
         level_word.mastery_score = (
             level_word.correct_attempts / level_word.attempts
         )
 
-        # 🚀 NEW — mastery decided ONLY by current attempt
-        level_word.is_mastered = similarity_percent >= 80
+        # 🚀 NEW — Highest score ever matters
+        if similarity_percent > (level_word.highest_score or 0):
+            level_word.highest_score = similarity_percent
 
-        print(f"🏁 Mastered THIS attempt? {level_word.is_mastered}")
-
+        # Mastered flag = EVER got >= 80
+        level_word.is_mastered = (level_word.highest_score or 0) >= 80
 
         db.commit()
 
         print(f"📊 Attempts = {level_word.attempts}")
         print(f"🏆 Correct Attempts = {level_word.correct_attempts}")
         print(f"⭐ Mastery Score = {round(level_word.mastery_score, 2)}")
+        print(f"🔥 Highest Score = {level_word.highest_score}")
         print(f"🟢 Mastered? {level_word.is_mastered}")
 
     finally:
         db.close()
 
     # -------------------------
-    # 7️⃣ Return clean response
+    # ⭐ 7️⃣ FEEDBACK + RECOMMENDATION
     # -------------------------
-    print("\n🎉 STEP 7: Flow complete — sending response!\n")
+
+    feedback_input = FeedbackIn(
+        word=expected,
+        spoken=spoken,
+        similarity=similarity_percent,
+        attempts=level_word.attempts,
+        pace="custom"
+    )
+
+    print("\n💬 Generating Feedback...")
+    feedback = generate_feedback(feedback_input)
+    print("📝 Feedback =", feedback)
+
+    print("\n🧭 Generating Recommendation...")
+    recommendation = recommend_next_step(feedback_input)
+    print("📌 Recommendation =", recommendation)
+
+    # -------------------------
+    # 8️⃣ Return clean response
+    # -------------------------
+    print("\n🎉 STEP 8: Flow complete — sending response!\n")
 
     return {
         "file_id": file_id,
@@ -141,4 +169,8 @@ async def run_practice_flow(word_id: int, file: UploadFile):
         "similarity": similarity_percent,
         "verdict": verdict,
         "is_mastered": level_word.is_mastered,
+        "attempts": level_word.attempts,
+        "highest_score": level_word.highest_score,
+        "feedback": feedback,
+        "recommendation": recommendation
     }
