@@ -11,6 +11,8 @@ from app.database.connection import Base, engine
 from app.auth.routes import router as auth_router
 from app.learning.routes import router as learning_router
 from app.practice.routes import router as practice_router
+from app.feedback.routes import router as feedback_router
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,6 +23,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 app.include_router(auth_router)
 app.include_router(learning_router)
 app.include_router(practice_router)
+app.include_router(feedback_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
