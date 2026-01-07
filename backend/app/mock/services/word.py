@@ -1,12 +1,43 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
+from fastapi import HTTPException
+from pathlib import Path
+import random
+from sqlalchemy import func
+import uuid
+import shutil
 
 from app.mock.models.attempt import MockAttempt
 from app.mock.services.evaluate import evaluate_similarity
-from app.practice.services.audio_service import convert_to_wav
+from app.practice.services.audio_service import convert_to_wav, UPLOAD_DIR
 from app.practice.services.stt_service import speech_to_text
-from app.mock.models.word import MockWord
+from app.learning.models.word import Word
 
+
+# -------------------------------
+# AUDIO SAVE HELPER
+# -------------------------------
+
+def save_upload_with_id(audio) -> str:
+    """
+    Save UploadFile to UPLOAD_DIR using a generated file_id.
+    Returns file_id (without extension).
+    """
+    file_id = str(uuid.uuid4())
+    ext = Path(audio.filename).suffix or ".webm"
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    dest = UPLOAD_DIR / f"{file_id}{ext}"
+
+    with dest.open("wb") as buffer:
+        shutil.copyfileobj(audio.file, buffer)
+
+    return file_id
+
+
+# -------------------------------
+# PROCESS MOCK WORD
+# -------------------------------
 
 def process_mock_word(
     db: Session,
@@ -15,27 +46,45 @@ def process_mock_word(
     word_id: int,
     audio
 ):
+    # 1️⃣ Fetch attempt
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.id == attempt_id,
+        MockAttempt.attempt_code == attempt_id,
         MockAttempt.user_id == user_id
     ).first()
 
     if not attempt:
-        raise ValueError("Mock attempt not found")
+        raise HTTPException(status_code=404, detail="Mock attempt not found")
 
     if attempt.status == "completed":
-        raise ValueError("Mock test already completed")
+        raise HTTPException(status_code=400, detail="Mock test already completed")
 
-    # ---- STT PIPELINE ----
-    wav_path = convert_to_wav(audio)
-    recognized_text = speech_to_text(wav_path)
+    # 2️⃣ Fetch expected word from WORDS table
+    word = db.get(Word, word_id)
 
-    expected_text = audio.filename.split(".")[0]  # temporary, frontend-controlled later
+    if not word:
+        raise HTTPException(status_code=404, detail="Word not found")
 
+    expected_text = word.text  # ✅ real string value
+
+    # 3️⃣ STT pipeline
+    file_id = save_upload_with_id(audio)
+    wav_path = convert_to_wav(file_id)
+
+    stt_result = speech_to_text(wav_path)
+    recognized_text = stt_result["text"]
+
+    # 4️⃣ Evaluate similarity
     evaluation = evaluate_similarity(
         expected=expected_text,
         spoken=recognized_text
     )
+
+    # 5️⃣ Safe results mutation
+    if not attempt.results:
+        attempt.results = {"words": []}
+
+    if "words" not in attempt.results:
+        attempt.results["words"] = []
 
     word_result = {
         "word_id": word_id,
@@ -52,7 +101,7 @@ def process_mock_word(
 
     db.commit()
 
-    # ✅ SCHEMA-COMPLIANT RESPONSE
+    # 6️⃣ API response
     return {
         "word_id": word_id,
         "score": evaluation["score"],
@@ -61,29 +110,31 @@ def process_mock_word(
         "recognized_text": recognized_text
     }
 
-def get_mock_words_for_level(db: Session, level: str):
-    """
-    Fetch mock words for a given difficulty level.
-    Permanent DB-backed implementation.
-    """
+# def get_mock_word(db: Session, word_id: int):
+#     word = db.query(MockWord).filter(MockWord.id == word_id).first()
+
+#     return {
+#         "id": word.id,
+#         "word": word.word
+#     }
+
+def get_mock_words_for_level(
+    db: Session,
+    level_id: int,
+    limit: int = 3
+):
     words = (
-        db.query(MockWord)
-        .filter(MockWord.level == level)
+        db.query(Word)
+        .filter(Word.level_id == level_id)
+        .order_by(func.random())   # ✅ KEY LINE
+        .limit(limit)
         .all()
     )
-
+    rows = words
     return [
         {
             "id": w.id,
-            "word": w.word
+            "word": w.text
         }
-        for w in words
+        for w in rows   # ✅ FIX
     ]
-
-def get_mock_word(db: Session, word_id: int):
-    word = db.query(MockWord).filter(MockWord.id == word_id).first()
-
-    return {
-        "id": word.id,
-        "word": word.word
-    }

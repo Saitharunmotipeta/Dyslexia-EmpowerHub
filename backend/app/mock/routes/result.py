@@ -15,9 +15,11 @@ def get_mock_result(
         return finalize_mock_attempt(
             db=db,
             user_id=user_id,
-            attempt_id=attempt_id
+            attempt_code=attempt_id
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    # finally:
+    #     print("result eoute passed")

@@ -1,9 +1,11 @@
 from datetime import datetime
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.mock.models.attempt import MockAttempt
 from app.mock.utils.unlock import is_mock_unlocked
 from app.mock.services.word import get_mock_words_for_level
+from app.mock.utils.unlock import generate_attempt_code
 
 
 # -------------------------------
@@ -12,16 +14,9 @@ from app.mock.services.word import get_mock_words_for_level
 
 def start_mock_attempt(
     db: Session,
+    level_id: int,
     user_id: int,
-    level_id: int
 ):
-    """
-    1. Check unlock rule
-    2. Pick 3 words
-    3. Create mock attempt
-    """
-
-    # 1️⃣ Unlock check
     unlocked = is_mock_unlocked(
         db=db,
         user_id=user_id,
@@ -29,26 +24,43 @@ def start_mock_attempt(
     )
 
     if not unlocked:
-        raise PermissionError(
-            "You’re almost there! Complete more practice to unlock the mock test 💪"
+        raise HTTPException(
+            status_code=403,
+            detail="You’re almost there! Complete more practice to unlock the mock test 💪"
         )
+    REQUIRED_WORDS = 3
 
-    # 2️⃣ Pick words (exactly 3)
+    # 1️⃣ Get random words (no unlock, no levels)
     words = get_mock_words_for_level(
         db=db,
-        level_id=level_id,
-        limit=3
+        level_id=level_id,   # ✅ ADD THIS
+        limit=REQUIRED_WORDS
     )
 
-    if len(words) < 3:
-        raise ValueError("Not enough words available for this level")
+
+    if len(words) < REQUIRED_WORDS:
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough words available to start mock test"
+        )
+
+    # 2️⃣ Generate unique 6-digit attempt code
+    attempt_code = generate_attempt_code()
+
+    # (optional but safe uniqueness check)
+    while db.query(MockAttempt).filter(
+        MockAttempt.attempt_code == attempt_code
+    ).first():
+        attempt_code = generate_attempt_code()
 
     # 3️⃣ Create attempt
     attempt = MockAttempt(
         user_id=user_id,
         level_id=level_id,
+        attempt_code=attempt_code,
         status="started",
-        results={"words": []}
+        results={"words": []},
+        started_at=datetime.utcnow()
     )
 
     db.add(attempt)
@@ -56,13 +68,10 @@ def start_mock_attempt(
     db.refresh(attempt)
 
     return {
-        "attempt_id": attempt.id,
-        "level_id": level_id,
+        "attempt_id": attempt.attempt_code,  # 🔑 public-facing
         "words": words,
         "message": "Mock test started. Take your time — you’ve got this 🌱"
     }
-
-
 # -------------------------------
 # FINALIZE MOCK ATTEMPT
 # -------------------------------
@@ -70,23 +79,40 @@ def start_mock_attempt(
 def finalize_mock_attempt(
     db: Session,
     user_id: int,
-    attempt_id: int
+    attempt_code: int
 ):
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.id == attempt_id,
+        MockAttempt.attempt_code == attempt_code,
         MockAttempt.user_id == user_id
     ).first()
 
     if not attempt:
-        raise ValueError("Mock attempt not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Mock attempt not found"
+        )
 
+    # if attempt.status == "completed":
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail="Mock test already completed"
+    #     )
+
+    attempt.status = "completed"
+    attempt.completed_at = datetime.utcnow()
+    # attempt.results["words"].append(word_result)
+    # db.commit()
     words = attempt.results.get("words", [])
 
-    if not words:
-        raise ValueError("No words attempted")
+    # if not words:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail="No words attempted yet. Submit at least one word before viewing results."
+    #     )
 
     scores = [w.get("score", 0) for w in words]
     total_score = round(sum(scores) / len(scores), 2)
+
 
     verdict = (
         "excellent" if total_score >= 85 else
@@ -121,8 +147,11 @@ def finalize_mock_attempt(
     detailed_feedback = [
         {
             "word_id": w["word_id"],
-            "feedback": "Good attempt, minor pronunciation issue"
-            if w["score"] < 85 else "Well pronounced"
+            "feedback": (
+                "Well pronounced"
+                if w.get("score", 0) >= 85
+                else "Good attempt, minor pronunciation issue"
+            )
         }
         for w in words
     ]
@@ -134,9 +163,8 @@ def finalize_mock_attempt(
 
     db.commit()
 
-    # ✅ SCHEMA-COMPLIANT RESPONSE
     return {
-        "attempt_id": attempt.id,
+        "attempt_id": attempt.attempt_code,  # ✅ public-safe
         "score": total_score,
         "verdict": verdict,
         "words": words,

@@ -12,6 +12,7 @@ def start_mock(
     user_id: int = Depends(get_current_user_id)
 ):
     try:
+        # limit = min(limit, len(words))
         return start_mock_attempt(
             db=db,
             user_id=user_id,
@@ -19,5 +20,6 @@ def start_mock(
         )
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=str(e))
+        

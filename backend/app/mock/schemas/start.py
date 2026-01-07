@@ -4,6 +4,7 @@ from typing import List
 
 class MockWord(BaseModel):
     id: int
+    level_id: int
     text: str
 
 
@@ -12,4 +13,4 @@ class MockStartResponse(BaseModel):
     level_id: int
     words: List[MockWord]
     message: str
-    
+

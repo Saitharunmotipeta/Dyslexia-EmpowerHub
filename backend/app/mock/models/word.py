@@ -8,4 +8,5 @@ class MockWord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     level = Column(String, index=True)
+    level_id = Column(Integer, nullable=False)
     word = Column(String, nullable=False)

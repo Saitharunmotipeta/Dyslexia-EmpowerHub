@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from app.learning.models.level_word import LevelWord
+import random
 
 
 def is_mock_unlocked(
@@ -22,3 +23,7 @@ def is_mock_unlocked(
     ).count()
 
     return (mastered / total) >= 0.7
+
+def generate_attempt_code() -> int:
+    return random.randint(100000, 999999)
+
