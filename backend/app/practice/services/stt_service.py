@@ -110,3 +110,6 @@ def speech_to_text_from_wav(wav_path) -> dict:
         "text": text,
         "segments": results,
     }
+
+def speech_to_text(wav_path):
+    return speech_to_text_from_wav(wav_path)

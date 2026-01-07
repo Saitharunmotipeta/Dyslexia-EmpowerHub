@@ -220,3 +220,17 @@ app
 |        |--routes.py
 |        |--models.py
 |        |--schemas.py
+
+
+i mean get the mock test directory structure i will not change any of the previous and the current directory i have is 
+backend
+|--app
+|       |--auth
+|       |      |--(other folders routes services)
+|       |--mock
+|--media
+|       |--ffmpeg_utils.py
+|--softwaremodels
+|          |--vosk
+|          |--phenonememodel
+|          |--ffmpeg
