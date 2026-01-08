@@ -97,12 +97,19 @@ def process_mock_word(
         spoken=recognized_text
     )
 
+    evaluation = evaluate_similarity(
+        expected=expected_text,
+        spoken=recognized_text
+    )
+
     word_result = {
         "word_id": word_id,
         "expected": expected_text,
         "recognized": recognized_text,
         "score": evaluation["score"],
         "verdict": evaluation["verdict"],
+        "phonetics": evaluation.get("phonetics", {}),
+        "feedback": evaluation.get("feedback"),
         "submitted_at": datetime.utcnow().isoformat()
     }
 

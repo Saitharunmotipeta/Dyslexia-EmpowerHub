@@ -13,3 +13,4 @@ psycopg2-binary>=2.9.7
 alembic>=1.11.1
 pydantic>=2.8.0
 python-multipart>=0.0.6
+phonemizer>=3.3.0
