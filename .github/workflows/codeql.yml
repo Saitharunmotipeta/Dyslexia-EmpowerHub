@@ -1,12 +1,42 @@
-name: Placeholder — CodeQL Disabled
+name: CodeQL
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: '0 6 * * 5'   # weekly scan (Friday morning)
+
+permissions:
+  contents: read
 
 jobs:
-  noop:
+  analyze:
+    name: Analyze
     runs-on: ubuntu-latest
-    steps:
-      - name: Placeholder
-      - run: echo "Default CodeQL setup is active. This workflow is intentionally empty."
 
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ "python" ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      # No build step needed for Python
+      # CodeQL works directly on source
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
