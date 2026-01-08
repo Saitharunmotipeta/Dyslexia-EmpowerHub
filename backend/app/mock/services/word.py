@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 from fastapi import HTTPException
+from sqlalchemy.orm.attributes import flag_modified
 from pathlib import Path
 import random
 from sqlalchemy import func
@@ -42,10 +43,12 @@ def save_upload_with_id(audio) -> str:
 def process_mock_word(
     db: Session,
     user_id: int,
-    attempt_id: int,
+    attempt_id: int,   # attempt_code (public-facing)
     word_id: int,
     audio
 ):
+    MAX_WORDS = 3
+
     # 1️⃣ Fetch attempt
     attempt = db.query(MockAttempt).filter(
         MockAttempt.attempt_code == attempt_id,
@@ -58,33 +61,41 @@ def process_mock_word(
     if attempt.status == "completed":
         raise HTTPException(status_code=400, detail="Mock test already completed")
 
-    # 2️⃣ Fetch expected word from WORDS table
+    # 2️⃣ Fetch expected word
     word = db.get(Word, word_id)
-
     if not word:
         raise HTTPException(status_code=404, detail="Word not found")
 
-    expected_text = word.text  # ✅ real string value
+    expected_text = word.text
 
-    # 3️⃣ STT pipeline
+    # 3️⃣ Prepare results container safely
+    results = attempt.results or {}
+    words = results.get("words", [])
+
+    # 🚫 Duplicate word protection
+    if any(w["word_id"] == word_id for w in words):
+        raise HTTPException(
+            status_code=400,
+            detail="This word was already submitted for this attempt"
+        )
+
+    # 🚫 Max words protection
+    if len(words) >= MAX_WORDS:
+        raise HTTPException(
+            status_code=400,
+            detail="All mock words already submitted"
+        )
+
+    # 4️⃣ STT pipeline
     file_id = save_upload_with_id(audio)
     wav_path = convert_to_wav(file_id)
+    recognized_text = speech_to_text(wav_path)["text"]
 
-    stt_result = speech_to_text(wav_path)
-    recognized_text = stt_result["text"]
-
-    # 4️⃣ Evaluate similarity
+    # 5️⃣ Evaluate pronunciation
     evaluation = evaluate_similarity(
         expected=expected_text,
         spoken=recognized_text
     )
-
-    # 5️⃣ Safe results mutation
-    if not attempt.results:
-        attempt.results = {"words": []}
-
-    if "words" not in attempt.results:
-        attempt.results["words"] = []
 
     word_result = {
         "word_id": word_id,
@@ -95,13 +106,28 @@ def process_mock_word(
         "submitted_at": datetime.utcnow().isoformat()
     }
 
-    attempt.results["words"].append(word_result)
+    # 6️⃣ Append + FORCE SQLAlchemy to persist JSON
+    words.append(word_result)
+
+    attempt.results = {
+        **results,
+        "words": words
+    }
+
+    flag_modified(attempt, "results")  # 🔥 THIS IS CRITICAL
+
     attempt.status = "in_progress"
     attempt.last_accessed_at = datetime.utcnow()
 
-    db.commit()
+    # 7️⃣ Commit safely
+    try:
+        db.commit()
+        db.refresh(attempt)
+    except Exception:
+        db.rollback()
+        raise
 
-    # 6️⃣ API response
+    # 8️⃣ API response
     return {
         "word_id": word_id,
         "score": evaluation["score"],
@@ -109,7 +135,6 @@ def process_mock_word(
         "message": "Nice effort! Let’s keep moving 🌱",
         "recognized_text": recognized_text
     }
-
 # def get_mock_word(db: Session, word_id: int):
 #     word = db.query(MockWord).filter(MockWord.id == word_id).first()
 

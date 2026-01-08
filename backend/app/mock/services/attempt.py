@@ -104,6 +104,13 @@ def finalize_mock_attempt(
     # db.commit()
     words = attempt.results.get("words", [])
 
+    # if len(words) == 0:
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail="No words submitted. Complete at least one word before finishing the mock."
+    #     )
+
+
     # if not words:
     #     raise HTTPException(
     #         status_code=400,
