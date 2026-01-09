@@ -1,18 +1,121 @@
-Dyslexia EmpowerHub is a modular, production-ready backend system built to support a dyslexia-focused learning platform with structured content delivery, pronunciation assistance, and learner progress analytics. The system is implemented using **FastAPI** and follows clean architecture principles to ensure scalability, maintainability, and future service separation.
+Perfect — that’s the **right repo-level attitude** 👍
+Root README should **not duplicate module docs**. It should orient, not explain.
 
-**Project Setup & Initialization**
-The project begins with creating a Python virtual environment and installing all dependencies via `requirements.txt`. Environment variables are configured to define database connectivity, authentication secrets, and media storage paths. The application is started using `uvicorn app.main:app`, which initializes core services, database connections, and required media directories during startup.
+Here’s a **clean, minimal, professional ROOT README** that:
 
-**Authentication & Security Flow**
-User access is managed through JWT-based authentication. Secure endpoints ensure that only authorized users can interact with learning resources, while role-ready architecture allows future expansion into admin or educator access without major refactoring.
+* Explains **what the repo is**
+* Explains **how it’s organized**
+* Points contributors to **backend / frontend READMEs**
+* Avoids repeating details
+* Scales well as frontend comes in
 
-**Learning & Pronunciation Pipeline**
-The learning module exposes APIs to retrieve levels, words, and progress statistics. Pronunciation requests are processed through an offline text-to-speech pipeline, generating audio at different speaking paces (slow, medium, fast) to support diverse learner needs. Generated audio is cached locally to reduce recomputation and ensure consistent playback.
+You can drop this at the **root of the repository**.
 
-**Progress Tracking & Data Management**
-Learner activity is tracked at both word and level granularity. Mastery metrics are computed dynamically and persisted in the database, enabling accurate progress visualization and adaptive learning flows.
+---
 
-**Architecture & Deployment Readiness**
-The codebase is structured into clear layers—routes, services, models, and schemas—ensuring separation of concerns and ease of debugging. The backend is designed to function as a monolith today while remaining ready for containerization and future microservice extraction without breaking existing functionality.
+# 🧠 Dyslexia Learning Platform
 
-This backend serves as a stable, extensible foundation for building an accessible, AI-assisted learning platform focused on long-term scalability and real-world deployment.
+A full-stack learning platform designed to support **dyslexic learners** through thoughtful speech practice, structured learning, and confidence-building assessments.
+
+This repository contains **both backend and frontend codebases**, each documented independently.
+
+---
+
+## 📁 Repository Structure
+
+```
+dyslexia-learning-platform/
+├── backend/
+│   ├── app/
+│   ├── media/
+│   ├── softwaremodels/
+│   └── README.md
+│
+└── frontend/
+    └── README.md   (coming soon)
+```
+
+Each major part of the system is **self-contained** and documented in its own README.
+
+---
+
+## 🔙 Backend
+
+The backend is a **FastAPI + PostgreSQL** system responsible for:
+
+* authentication & authorization
+* learning and practice flows
+* mock tests & reports
+* speech processing (STT, TTS)
+* phoneme-aware evaluation
+* feedback & recommendation engines
+
+👉 **See [`backend/README.md`] for full backend details**, architecture, and API documentation.
+
+---
+
+## 🎨 Frontend (Coming Soon)
+
+The frontend will handle:
+
+* learner experience & UI
+* accessibility-first design
+* audio interaction & playback
+* progress visualization
+* report downloads
+
+👉 **See [`frontend/README.md`] for frontend setup and design decisions** (to be added).
+
+---
+
+## 🧭 How to Navigate This Repo
+
+* Start at the **backend README** if you’re working on APIs or data flows
+* Start at the **frontend README** if you’re working on UI/UX
+* Each module inside backend (`learning`, `practice`, `mock`, etc.) has its own structure and documentation
+* No single “god document” — each part explains itself
+
+---
+
+## 💙 Design Philosophy
+
+* supportive, non-punitive learning
+* clarity over complexity
+* scalable without overengineering
+* learner confidence comes first
+
+This project is built to grow — technically and humanly.
+
+---
+
+## 🤝 Contributing
+
+* Read the README inside the area you’re working on
+* Keep modules isolated
+* Do not break existing endpoints
+* Prefer small, incremental improvements
+* Preserve the supportive tone throughout the system
+
+---
+
+## 📌 Final Note
+
+This repository is intentionally **modular**.
+
+If you’re exploring it for the first time:
+
+* don’t rush
+* open the READMEs
+* follow the structure
+
+The system is designed to make sense **one module at a time**.
+
+---
+
+If you want, next time we can:
+
+* add a CONTRIBUTING.md
+* add repo-level scripts (lint, test, run)
+* prepare it for open-source or demo
+
+For now — this README is exactly what a clean repo needs.
