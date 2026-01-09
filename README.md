@@ -1,18 +1,3 @@
-Perfect — that’s the **right repo-level attitude** 👍
-Root README should **not duplicate module docs**. It should orient, not explain.
-
-Here’s a **clean, minimal, professional ROOT README** that:
-
-* Explains **what the repo is**
-* Explains **how it’s organized**
-* Points contributors to **backend / frontend READMEs**
-* Avoids repeating details
-* Scales well as frontend comes in
-
-You can drop this at the **root of the repository**.
-
----
-
 # 🧠 Dyslexia Learning Platform
 
 A full-stack learning platform designed to support **dyslexic learners** through thoughtful speech practice, structured learning, and confidence-building assessments.
@@ -111,11 +96,3 @@ If you’re exploring it for the first time:
 The system is designed to make sense **one module at a time**.
 
 ---
-
-If you want, next time we can:
-
-* add a CONTRIBUTING.md
-* add repo-level scripts (lint, test, run)
-* prepare it for open-source or demo
-
-For now — this README is exactly what a clean repo needs.
