@@ -8,10 +8,10 @@ from app.practice.services.audio_service import convert_to_wav
 from app.practice.services.stt_service import speech_to_text_from_wav
 from app.practice.services.eval_service import evaluate_similarity
 
-# ⭐ Insights engines
+# Insights engines
 from app.insights.services.feedback_service import generate_feedback
 from app.insights.services.recommendations_service import recommend_next_step
-from app.insights.schemas import FeedbackIn   # <-- IMPORTANT
+from app.insights.schemas import FeedbackIn
 
 from app.learning.routes.tts import tts_word_handler
 from app.learning.models.word import Word
@@ -22,49 +22,47 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("learning-automation")
 
 
+# -------------------------------
+# CONFIG (single source of truth)
+# -------------------------------
+
+PROGRESS_THRESHOLD = 50        # learner is moving forward
+MASTERY_THRESHOLD = 80         # learner has mastered the word
+
+
 async def learning_automation_handler(
     level_id: int,
     word_id: int,
     pace: int,
     file: UploadFile = File(...)
 ):
-
-    print("\n🚀 LEARNING FLOW STARTED")
-    print(f"📚 Level = {level_id}")
-    print(f"📝 Word ID = {word_id}")
-    print(f"⏩ Pace = {pace}")
+    logger.info("🚀 Learning automation started")
 
     # =========================
     # 0️⃣ TTS
     # =========================
-    print("🔊 STEP 0 — Generating TTS...")
     tts_res = tts_word_handler(SessionLocal(), word_id, pace)
     tts_url = tts_res.get("audio_url")
-    print(f"🎵 TTS Ready → {tts_url}")
 
     # =========================
     # 1️⃣ UPLOAD
     # =========================
-    print("\n📥 STEP 1 — Uploading learner audio...")
     uploaded = await upload_audio(file)
     file_id = uploaded.file_id
-    print(f"🆔 File ID = {file_id}")
 
     # =========================
     # 2️⃣ CONVERT
     # =========================
     wav_path = convert_to_wav(file_id)
-    print(f"🎧 WAV Path = {wav_path}")
 
     # =========================
     # 3️⃣ STT
     # =========================
     stt = speech_to_text_from_wav(wav_path)
-    spoken = stt.get("text", "")
-    print(f"🧠 Heard = '{spoken}'")
+    spoken = stt.get("text", "").strip()
 
     # =========================
-    # 4️⃣ DB: EXPECTED WORD
+    # 4️⃣ DB LOOKUP
     # =========================
     db = SessionLocal()
 
@@ -75,51 +73,49 @@ async def learning_automation_handler(
         ).first()
 
         if not word:
-            raise HTTPException(404, "Word not found")
+            raise HTTPException(status_code=404, detail="Word not found")
 
         expected = word.text
-        print(f"📘 Expected = '{expected}'")
 
         # =========================
-        # 5️⃣ EVALUATE
+        # 5️⃣ EVALUATION
         # =========================
         score, verdict = evaluate_similarity(expected, spoken)
 
-        mastered_now = score >= 80
-
-        print(f"🎯 Match = {score}% ({verdict})")
+        # Progress ≠ Mastery (THIS IS THE FIX)
+        progress_this_attempt = score >= PROGRESS_THRESHOLD
+        mastered_this_attempt = score >= MASTERY_THRESHOLD
 
         # =========================
         # 6️⃣ FEEDBACK ENGINE
         # =========================
-
         feedback_input = FeedbackIn(
             word=expected,
             spoken=spoken,
             similarity=score,
-            attempts=1,
+            attempts=1,          # single-shot context
             pace="custom"
         )
 
         feedback = generate_feedback(feedback_input)
-        print("\n💬 FEEDBACK →", feedback)
 
         # =========================
         # 7️⃣ RECOMMENDATION ENGINE
         # =========================
-
         recommendation = recommend_next_step(feedback_input)
-        print("\n🧭 RECOMMENDATION →", recommendation)
 
         # =========================
-        # 8️⃣ UPDATE DB
+        # 8️⃣ UPDATE LEARNING STATE
         # =========================
         level_word = db.query(LevelWord).filter(
-            LevelWord.word_id == word_id
+            LevelWord.word_id == word_id,
+            LevelWord.level_id == level_id
         ).first()
 
         if not level_word:
             level_word = LevelWord(
+                user_id=None,            # optional / system driven
+                level_id=level_id,
                 word_id=word_id,
                 attempts=0,
                 correct_attempts=0,
@@ -129,25 +125,29 @@ async def learning_automation_handler(
             )
             db.add(level_word)
 
+        # attempt tracking
         level_word.attempts += 1
-        if mastered_now:
+
+        if progress_this_attempt:
             level_word.correct_attempts += 1
 
-        # keep historical mastery_score for analytics
-        level_word.mastery_score = (
-            level_word.correct_attempts / level_word.attempts
+        # progress ratio (analytics only)
+        level_word.mastery_score = round(
+            level_word.correct_attempts / level_word.attempts,
+            2
         )
 
-        # update highest score logic
+        # highest score decides mastery (corporate-safe)
         if score > (level_word.highest_score or 0):
             level_word.highest_score = score
 
-        # only highest score decides mastery
-        level_word.is_mastered = (level_word.highest_score or 0) >= 80
+        level_word.is_mastered = (
+            (level_word.highest_score or 0) >= MASTERY_THRESHOLD
+        )
 
         db.commit()
 
-        # ⭐⭐ CACHE VALUES BEFORE CLOSING SESSION ⭐⭐
+        # cache before closing session
         mastery_overall = level_word.is_mastered
         highest_score = level_word.highest_score
         total_attempts = level_word.attempts
@@ -155,18 +155,31 @@ async def learning_automation_handler(
     finally:
         db.close()
 
-    print("\n✨ FLOW COMPLETE\n")
+    print("✅ Learning automation completed")
 
+    # =========================
+    # 9️⃣ RESPONSE CONTRACT
+    # =========================
     return {
         "word_id": word_id,
         "expected": expected,
         "spoken": spoken,
         "similarity": score,
         "verdict": verdict,
-        "mastered_this_attempt": mastered_now,
+
+        # 🔑 separated signals
+        "progress_this_attempt": progress_this_attempt,
+        "mastered_this_attempt": mastered_this_attempt,
+
+        # 📊 historical metrics
         "highest_score": highest_score,
         "total_attempts": total_attempts,
         "mastery_overall": mastery_overall,
+
+        # 🧠 insights
         "feedback": feedback,
-        "recommendation": recommendation
+        "recommendation": recommendation,
+
+        # 🎧 extras (non-breaking)
+        "tts_audio": tts_url
     }
