@@ -18,6 +18,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt || true
+          fi
+
+      - name: Python syntax check
+        run: |
+          python -m compileall backend || true
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -28,4 +43,3 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-
