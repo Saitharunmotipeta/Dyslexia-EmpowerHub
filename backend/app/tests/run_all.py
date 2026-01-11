@@ -26,28 +26,31 @@ class TestClient:
     def set_token(self, token: str):
         self.token = token
 
-    def _headers(self):
+    def _headers(self, extra_headers: dict | None = None):
+        headers = {}
         if self.token:
-            return {"Authorization": f"Bearer {self.token}"}
-        return {}
+            headers["Authorization"] = f"Bearer {self.token}"
+        if extra_headers:
+            headers.update(extra_headers)
+        return headers
 
-    def get(self, path: str):
+    def get(self, path: str, headers: dict | None = None):
         url = f"{self.base_url}{path}"
         if self.verbose:
             print(f"[GET] {url}")
         return self.requests.get(
             url,
-            headers=self._headers(),
+            headers=self._headers(headers),
             timeout=self.timeout
         )
 
-    def post(self, path: str, json=None, files=None, data=None):
+    def post(self, path: str, json=None, files=None, data=None, headers=None):
         url = f"{self.base_url}{path}"
         if self.verbose:
             print(f"[POST] {url}")
         return self.requests.post(
             url,
-            headers=self._headers(),
+            headers=self._headers(headers),
             json=json,
             files=files,
             data=data,
