@@ -7,7 +7,7 @@ from pydub import AudioSegment
 # =========================
 # PATHS
 # =========================
-BASE_DIR = Path(__file__).resolve().parents[3]
+BASE_DIR = Path(__file__).resolve().parents[4]
 VOSK_MODEL_PATH = BASE_DIR / "softwaremodels" / "vosk-model-small-en-us-0.15"
 
 if not VOSK_MODEL_PATH.exists():
