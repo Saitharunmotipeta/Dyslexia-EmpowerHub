@@ -11,13 +11,14 @@ WAV_DIR = BASE_DIR / "temp" / "audio_wav"
 os.makedirs(WAV_DIR, exist_ok=True)
 
 
-def convert_to_wav(file_id: str) -> str:
+def convert_to_wav(file_id: str, user_id: int) -> str:
     """
     Find uploaded file by file_id.* and convert to mono 16k WAV.
     Returns absolute wav file path.
     """
 
-    candidates = list(UPLOAD_DIR.glob(f"{file_id}.*"))
+    user_dir = UPLOAD_DIR / str(user_id)
+    candidates = list(user_dir.glob(f"{file_id}.*"))
     if not candidates:
         raise FileNotFoundError("Uploaded file not found")
 

@@ -18,7 +18,7 @@ from app.insights.services.feedback_service import generate_feedback
 from app.insights.services.recommendations_service import recommend_next_step
 
 
-async def run_practice_flow(word_id: int, file: UploadFile):
+async def run_practice_flow(word_id: int,file: UploadFile, user_id: int, level_id: int):
     """
     Orchestrates the full practice workflow.
     """
@@ -33,7 +33,7 @@ async def run_practice_flow(word_id: int, file: UploadFile):
     # 1️⃣ Save Uploaded File
     # -------------------------
     print("\n📥 STEP 1: Uploading file...")
-    uploaded = await upload_audio(file)
+    uploaded = await upload_audio(file, user_id)
     uploaded_path = uploaded.file_id if hasattr(uploaded, "file_id") else uploaded
     print(f"✅ Upload done!")
     print(f"📂 Saved file reference = {uploaded_path}")
@@ -42,7 +42,7 @@ async def run_practice_flow(word_id: int, file: UploadFile):
     # 2️⃣ Convert → WAV
     # -------------------------
     print("\n🎼 STEP 2: Converting to WAV...")
-    wav_path = convert_to_wav(uploaded_path)
+    wav_path = convert_to_wav(uploaded_path, user_id)
     print(f"✅ Conversion done!")
     print(f"🎧 WAV file path = {wav_path}")
 
@@ -88,14 +88,20 @@ async def run_practice_flow(word_id: int, file: UploadFile):
 
         level_word = (
             db.query(LevelWord)
-            .filter(LevelWord.word_id == word_id)
+            .filter(
+                LevelWord.word_id == word_id,
+                LevelWord.user_id == user_id,
+                LevelWord.level_id == level_id,
+            )
             .first()
         )
 
         if not level_word:
             print("🆕 No record found — creating new LevelWord entry")
             level_word = LevelWord(
+                user_id=user_id,
                 word_id=word_id,
+                level_id=level_id,
                 attempts=0,
                 correct_attempts=0,
                 mastery_score=0,
