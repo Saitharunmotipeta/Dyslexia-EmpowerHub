@@ -21,7 +21,6 @@ from app.database.connection import SessionLocal
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("learning-automation")
 
-
 # -------------------------------
 # CONFIG (single source of truth)
 # -------------------------------
@@ -33,27 +32,33 @@ MASTERY_THRESHOLD = 80         # learner has mastered the word
 async def learning_automation_handler(
     level_id: int,
     word_id: int,
+    user_id: int,
     pace: int,
     file: UploadFile = File(...)
 ):
-    logger.info("🚀 Learning automation started")
+    print("🚀 Learning automation started")
 
     # =========================
     # 0️⃣ TTS
     # =========================
     tts_res = tts_word_handler(SessionLocal(), word_id, pace)
+    db = SessionLocal()
+    try:
+        tts_res = tts_word_handler(db, word_id, pace)
+    finally:
+        db.close()
     tts_url = tts_res.get("audio_url")
 
     # =========================
     # 1️⃣ UPLOAD
     # =========================
-    uploaded = await upload_audio(file)
+    uploaded = await upload_audio(file, user_id)
     file_id = uploaded.file_id
 
     # =========================
     # 2️⃣ CONVERT
     # =========================
-    wav_path = convert_to_wav(file_id)
+    wav_path = convert_to_wav(file_id, user_id)
 
     # =========================
     # 3️⃣ STT
@@ -108,13 +113,14 @@ async def learning_automation_handler(
         # 8️⃣ UPDATE LEARNING STATE
         # =========================
         level_word = db.query(LevelWord).filter(
+            LevelWord.user_id == user_id,
             LevelWord.word_id == word_id,
             LevelWord.level_id == level_id
         ).first()
 
         if not level_word:
             level_word = LevelWord(
-                user_id=None,            # optional / system driven
+                user_id=user_id,            # optional / system driven
                 level_id=level_id,
                 word_id=word_id,
                 attempts=0,

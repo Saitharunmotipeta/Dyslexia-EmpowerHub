@@ -77,7 +77,14 @@ router.get("/tts/{word_id}")(
 async def learn_auto(
     level_id: int,
     word_id: int,
+    user_id: int = Depends(get_current_user_id),
     pace: int = 60,
     file: UploadFile = File(...)
 ):
-    return await learning_automation_handler(level_id, word_id, pace, file)
+    return await learning_automation_handler(
+        level_id=level_id,
+        word_id=word_id,
+        user_id=user_id,
+        pace=pace,
+        file=file
+    )
