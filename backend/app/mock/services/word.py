@@ -19,7 +19,7 @@ from app.learning.models.word import Word
 # AUDIO SAVE HELPER
 # -------------------------------
 
-def save_upload_with_id(audio) -> str:
+def save_upload_with_id(audio, user_id: int) -> str:
     """
     Save UploadFile to UPLOAD_DIR using a generated file_id.
     Returns file_id (without extension).
@@ -27,8 +27,10 @@ def save_upload_with_id(audio) -> str:
     file_id = str(uuid.uuid4())
     ext = Path(audio.filename).suffix or ".webm"
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    dest = UPLOAD_DIR / f"{file_id}{ext}"
+    user_dir = UPLOAD_DIR / str(user_id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+
+    dest = user_dir / f"{file_id}{ext}"
 
     with dest.open("wb") as buffer:
         shutil.copyfileobj(audio.file, buffer)
@@ -87,16 +89,11 @@ def process_mock_word(
         )
 
     # 4️⃣ STT pipeline
-    file_id = save_upload_with_id(audio)
-    wav_path = convert_to_wav(file_id)
+    file_id = save_upload_with_id(audio, user_id)
+    wav_path = convert_to_wav(file_id, user_id)
     recognized_text = speech_to_text(wav_path)["text"]
 
     # 5️⃣ Evaluate pronunciation
-    evaluation = evaluate_similarity(
-        expected=expected_text,
-        spoken=recognized_text
-    )
-
     evaluation = evaluate_similarity(
         expected=expected_text,
         spoken=recognized_text

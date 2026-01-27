@@ -14,7 +14,7 @@ def submit_mock_word(
     word_id: int,
     audio: UploadFile = File(...),
     db: Session = Depends(get_db),
-    user_id: int = Depends(get_current_user_id)
+    user_id: int = Depends(get_current_user_id),
 ):
     try:
         return process_mock_word(
