@@ -31,6 +31,6 @@ AUDIO_WAV_DIR.mkdir(parents=True, exist_ok=True)
 TTS_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── DEBUG (TEMP) ─────────────────────────────────
-print("🔍 BASE_DIR =", BASE_DIR)
-print("🔍 VOSK_MODEL_PATH =", VOSK_MODEL_PATH)
-print("🔍 EXISTS ?", VOSK_MODEL_PATH.exists())
+print("🔗 BASE_DIR =", BASE_DIR)
+print("🔗 VOSK_MODEL_PATH =", VOSK_MODEL_PATH)
+print("🔗 EXISTS ?", VOSK_MODEL_PATH.exists())

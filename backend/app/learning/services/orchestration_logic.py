@@ -1,119 +1,185 @@
 # app/learning/services/orchestration_logic.py
 
-import logging
-import requests
+from fastapi import UploadFile, HTTPException
+from sqlalchemy.orm import Session
 
+from app.database.connection import SessionLocal
+from app.learning.models.word import Word
+from app.learning.models.level_word import LevelWord
+
+# Practice pipeline
+from app.practice.routes.upload import upload_audio
+from app.practice.services.audio_service import convert_to_wav
+from app.practice.services.stt_service import speech_to_text_from_wav
+from app.practice.services.eval_service import evaluate_similarity
+
+# Insights
 from app.insights.schemas import FeedbackIn
 from app.insights.services.feedback_service import generate_feedback
 from app.insights.services.recommendations_service import recommend_next_step
 
-from app.learning.models.word import Word
-from app.learning.models.level_word import LevelWord
-from app.database.connection import SessionLocal
-
-API_BASE = "http://localhost:8000"
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("orchestration")
+# TTS
+from app.learning.routes.tts import tts_word_handler
 
 
-def run_learning_pipeline(user_id: int, level_id: int, word_id: int, pace: int = 80):
+PROGRESS_THRESHOLD = 50
+MASTERY_THRESHOLD = 80
 
-    print("\n🚀 ORCHESTRATION STARTED")
-    print(f"📚 Level = {level_id}")
-    print(f"📝 Word ID = {word_id}")
-    print(f"🏃 Pace = {pace}")
 
-    db = SessionLocal()
+async def run_learning_pipeline(
+    *,
+    user_id: int,
+    level_id: int,
+    word_id: int,
+    pace: int,
+    file: UploadFile,
+):
+    """
+    🎯 FULL LEARNING ORCHESTRATION PIPELINE
+    This is the SINGLE source of truth.
+    """
+
+    print("\n" + "=" * 70)
+    print("🚀 LEARNING PIPELINE STARTED")
+    print("=" * 70)
+    print(f"👤 User ID   : {user_id}")
+    print(f"📚 Level ID  : {level_id}")
+    print(f"📝 Word ID   : {word_id}")
+    print(f"🏃 Pace      : {pace}")
+    print(f"🎤 File Name : {file.filename}")
+    print("-" * 70)
+
+    db: Session = SessionLocal()
 
     try:
-        # 1️⃣ Validate Word
+        # =====================================================
+        # 1️⃣ WORD VALIDATION
+        # =====================================================
+        print("\n🔍 STEP 1: Validating word against level...")
         word = db.query(Word).filter(
             Word.id == word_id,
             Word.level_id == level_id
         ).first()
 
         if not word:
-            raise Exception("Word not found for level")
+            print("❌ Word validation failed")
+            raise HTTPException(status_code=404, detail="Word not found")
 
         expected = word.text
+        print(f"✅ Word validated → '{expected}'")
 
-        # 2️⃣ Get TTS
-        print("\n🔊 Fetching TTS audio…")
-        tts = requests.get(f"{API_BASE}/learning/tts/{word_id}", params={"pace": pace})
-        tts_url = tts.json()["audio_url"]
-        print(f"🎵 TTS Ready → {tts_url}")
+        # =====================================================
+        # 2️⃣ TTS GENERATION / FETCH
+        # =====================================================
+        print("\n🔊 STEP 2: Generating / Fetching TTS audio...")
+        tts_res = tts_word_handler(db, word_id, pace)
+        tts_url = tts_res.get("audio_url")
+        print(f"🎧 TTS audio ready → {tts_url}")
 
-        # 3️⃣ Upload sample file (frontend later replaces)
-        print("\n📥 Uploading learner audio…")
-        files = {"file": ("speech.mp3", open("sample_audio.mp3", "rb"))}
-        upload = requests.post(f"{API_BASE}/practice/upload", files=files)
-        file_id = upload.json()["file_id"]
+        # =====================================================
+        # 3️⃣ AUDIO UPLOAD
+        # =====================================================
+        print("\n📥 STEP 3: Uploading learner audio...")
+        uploaded = await upload_audio(file, user_id)
+        file_id = uploaded.file_id
+        print(f"✅ Upload successful")
+        print(f"🆔 File ID → {file_id}")
 
-        # 4️⃣ Convert
-        print("\n🎼 Converting → WAV…")
-        requests.post(f"{API_BASE}/practice/convert/{file_id}")
+        # =====================================================
+        # 4️⃣ CONVERT TO WAV
+        # =====================================================
+        print("\n🎼 STEP 4: Converting audio → WAV...")
+        wav_path = convert_to_wav(file_id, user_id)
+        print(f"🎵 WAV file created at → {wav_path}")
 
-        # 5️⃣ STT
-        print("\n🗣️ Running STT…")
-        stt = requests.post(f"{API_BASE}/practice/stt/{file_id}").json()
-        spoken = stt["recognized_text"]
+        # =====================================================
+        # 5️⃣ SPEECH TO TEXT
+        # =====================================================
+        print("\n🗣️ STEP 5: Running Speech-to-Text (VOSK)...")
+        stt_res = speech_to_text_from_wav(wav_path)
+        spoken = stt_res.get("text", "").strip()
 
-        # 6️⃣ Evaluate
-        print("\n📊 Evaluating similarity…")
-        eval_res = requests.post(
-            f"{API_BASE}/practice/evaluate",
-            json={"expected_text": expected, "spoken_text": spoken}
-        ).json()
+        print(f"🧠 Recognized Speech → '{spoken}'")
 
-        score = eval_res["similarity_percent"]
-        verdict = eval_res["verdict"]
+        # =====================================================
+        # 6️⃣ EVALUATION
+        # =====================================================
+        print("\n📊 STEP 6: Evaluating pronunciation...")
+        score, verdict = evaluate_similarity(expected, spoken)
 
-        mastered_now = score >= 80
+        progress_this_attempt = score >= PROGRESS_THRESHOLD
+        mastered_this_attempt = score >= MASTERY_THRESHOLD
 
-        # 7️⃣ Feedback + Recommendation
+        print(f"📈 Similarity Score → {score}")
+        print(f"⚖️ Verdict         → {verdict}")
+        print(f"➡️ Progressed?     → {progress_this_attempt}")
+        print(f"🏆 Mastered now?   → {mastered_this_attempt}")
+
+        # =====================================================
+        # 7️⃣ FEEDBACK ENGINE
+        # =====================================================
+        print("\n💬 STEP 7: Generating learner feedback...")
         feedback_input = FeedbackIn(
             word=expected,
             spoken=spoken,
             similarity=score,
             attempts=1,
-            pace="custom"
+            pace="custom",
         )
 
         feedback = generate_feedback(feedback_input)
-        recommendation = recommend_next_step(feedback_input)
+        print("📝 Feedback generated")
 
-        # 8️⃣ Update learning record
+        # =====================================================
+        # 8️⃣ RECOMMENDATION ENGINE
+        # =====================================================
+        print("\n🧭 STEP 8: Generating next-step recommendation...")
+        recommendation = recommend_next_step(feedback_input)
+        print("📌 Recommendation generated")
+
+        # =====================================================
+        # 9️⃣ UPDATE LEARNING STATE (DB)
+        # =====================================================
+        print("\n📦 STEP 9: Updating learning progress in DB...")
         level_word = db.query(LevelWord).filter(
-            LevelWord.word_id == word_id
+            LevelWord.user_id == user_id,
+            LevelWord.word_id == word_id,
+            LevelWord.level_id == level_id,
         ).first()
 
         if not level_word:
+            print("🆕 No existing record — creating new LevelWord")
             level_word = LevelWord(
+                user_id=user_id,
+                level_id=level_id,
                 word_id=word_id,
                 attempts=0,
                 correct_attempts=0,
                 mastery_score=0,
                 highest_score=0,
-                is_mastered=False
+                is_mastered=False,
             )
             db.add(level_word)
 
         level_word.attempts += 1
 
-        if mastered_now:
+        if progress_this_attempt:
             level_word.correct_attempts += 1
+            print("✅ Counted as a correct attempt")
+        else:
+            print("❌ Counted as incorrect attempt")
 
-        # historical stat only
-        level_word.mastery_score = (
-            level_word.correct_attempts / level_word.attempts
+        level_word.mastery_score = round(
+            level_word.correct_attempts / level_word.attempts, 2
         )
 
-        # highest score logic
         if score > (level_word.highest_score or 0):
+            print("🔥 New highest score achieved!")
             level_word.highest_score = score
 
-        level_word.is_mastered = (level_word.highest_score or 0) >= 80
+        level_word.is_mastered = (
+            (level_word.highest_score or 0) >= MASTERY_THRESHOLD
+        )
 
         db.commit()
 
@@ -121,19 +187,34 @@ def run_learning_pipeline(user_id: int, level_id: int, word_id: int, pace: int =
         highest_score = level_word.highest_score
         total_attempts = level_word.attempts
 
+        print("💾 DB update committed successfully")
+
     finally:
         db.close()
+        print("🔒 DB session closed")
 
-    print("\n✨ ORCHESTRATION COMPLETE")
+    # =====================================================
+    # 🔟 FINAL RESPONSE
+    # =====================================================
+    print("\n🎉 PIPELINE COMPLETE")
+    print("=" * 70)
 
     return {
+        "word_id": word_id,
         "expected": expected,
         "spoken": spoken,
         "similarity": score,
         "verdict": verdict,
+
+        "progress_this_attempt": progress_this_attempt,
+        "mastered_this_attempt": mastered_this_attempt,
+
         "highest_score": highest_score,
         "total_attempts": total_attempts,
         "mastery_overall": mastery_overall,
+
         "feedback": feedback,
-        "recommendation": recommendation
+        "recommendation": recommendation,
+
+        "tts_audio": tts_url,
     }
