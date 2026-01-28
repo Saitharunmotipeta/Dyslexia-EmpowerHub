@@ -10,8 +10,9 @@ import shutil
 
 from app.mock.models.attempt import MockAttempt
 from app.mock.services.evaluate import evaluate_similarity
-from app.practice.services.audio_service import convert_to_wav, UPLOAD_DIR
-from app.practice.services.stt_service import speech_to_text
+from app.core.paths import AUDIO_UPLOAD_DIR
+from app.practice.services.audio_service import convert_to_wav
+from app.practice.services.stt_service import speech_to_text_from_wav
 from app.learning.models.word import Word
 
 
@@ -27,7 +28,7 @@ def save_upload_with_id(audio, user_id: int) -> str:
     file_id = str(uuid.uuid4())
     ext = Path(audio.filename).suffix or ".webm"
 
-    user_dir = UPLOAD_DIR / str(user_id)
+    user_dir = AUDIO_UPLOAD_DIR / str(user_id)
     user_dir.mkdir(parents=True, exist_ok=True)
 
     dest = user_dir / f"{file_id}{ext}"
@@ -91,7 +92,7 @@ def process_mock_word(
     # 4️⃣ STT pipeline
     file_id = save_upload_with_id(audio, user_id)
     wav_path = convert_to_wav(file_id, user_id)
-    recognized_text = speech_to_text(wav_path)["text"]
+    recognized_text = speech_to_text_from_wav(wav_path)["text"]
 
     # 5️⃣ Evaluate pronunciation
     evaluation = evaluate_similarity(

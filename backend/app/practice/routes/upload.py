@@ -1,10 +1,9 @@
-import os
 import uuid
-from fastapi import UploadFile, File, HTTPException
-from app.practice.schemas.upload_schema import AudioUploadResponse
+from fastapi import UploadFile, HTTPException
 
-BASE_UPLOAD_DIR = "temp/audio_uploads"
-os.makedirs(BASE_UPLOAD_DIR, exist_ok=True)
+from app.practice.schemas.upload_schema import AudioUploadResponse
+from app.core.paths import AUDIO_UPLOAD_DIR
+
 
 ALLOWED_TYPES = {
     "audio/mpeg",
@@ -30,12 +29,13 @@ async def upload_audio(
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(status_code=400, detail="Unsupported audio format")
 
-    user_dir = os.path.join(BASE_UPLOAD_DIR, str(user_id))
-    os.makedirs(user_dir, exist_ok=True)
+    # Create user-scoped directory
+    user_dir = AUDIO_UPLOAD_DIR / str(user_id)
+    user_dir.mkdir(parents=True, exist_ok=True)
 
     file_id = str(uuid.uuid4())
     ext = file.filename.split(".")[-1]
-    filepath = os.path.join(user_dir, f"{file_id}.{ext}")
+    filepath = user_dir / f"{file_id}.{ext}"
 
     try:
         with open(filepath, "wb") as f:

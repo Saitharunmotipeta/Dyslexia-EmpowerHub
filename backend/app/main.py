@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 
 from app.database.connection import Base, engine
+from app.core.cleanup import cleanup_temp_audio
 from app.auth.routes import router as auth_router
 from app.learning.routes import router as learning_router
 from app.practice.routes import router as practice_router
@@ -36,3 +37,5 @@ def dyslexia():
 @app.get("/debug-routes")
 def debug_routes():
     return [r.path for r in app.routes]
+
+cleanup_temp_audio()

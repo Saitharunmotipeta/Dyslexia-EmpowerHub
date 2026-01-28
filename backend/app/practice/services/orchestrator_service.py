@@ -1,7 +1,7 @@
 # app/practice/services/orchestrator_service.py
 
-import uuid
 from fastapi import UploadFile, HTTPException
+from sqlalchemy.orm import Session
 
 from app.practice.routes.upload import upload_audio
 from app.practice.services.audio_service import convert_to_wav
@@ -12,38 +12,40 @@ from app.learning.models.word import Word
 from app.learning.models.level_word import LevelWord
 from app.database.connection import SessionLocal
 
-# ⭐ NEW — Insights Engine
 from app.insights.schemas import FeedbackIn
 from app.insights.services.feedback_service import generate_feedback
 from app.insights.services.recommendations_service import recommend_next_step
 
 
-async def run_practice_flow(word_id: int,file: UploadFile, user_id: int, level_id: int):
+async def run_practice_flow(
+    word_id: int,
+    file: UploadFile,
+    user_id: int,
+    level_id: int,
+):
     """
     Orchestrates the full practice workflow.
     """
 
-    file_id = str(uuid.uuid4())
     print("\n🚀 PRACTICE FLOW STARTED")
     print(f"🆔 word_id = {word_id}")
     print(f"🎵 incoming file = {file.filename}")
-    print(f"🧾 generated file_id = {file_id}")
 
     # -------------------------
     # 1️⃣ Save Uploaded File
     # -------------------------
     print("\n📥 STEP 1: Uploading file...")
     uploaded = await upload_audio(file, user_id)
-    uploaded_path = uploaded.file_id if hasattr(uploaded, "file_id") else uploaded
-    print(f"✅ Upload done!")
-    print(f"📂 Saved file reference = {uploaded_path}")
+    file_id = uploaded.file_id
+    print("✅ Upload done!")
+    print(f"📂 Saved file_id = {file_id}")
 
     # -------------------------
     # 2️⃣ Convert → WAV
     # -------------------------
     print("\n🎼 STEP 2: Converting to WAV...")
-    wav_path = convert_to_wav(uploaded_path, user_id)
-    print(f"✅ Conversion done!")
+    wav_path = convert_to_wav(file_id, user_id)
+    print("✅ Conversion done!")
     print(f"🎧 WAV file path = {wav_path}")
 
     # -------------------------
@@ -58,12 +60,11 @@ async def run_practice_flow(word_id: int,file: UploadFile, user_id: int, level_i
     # 4️⃣ Fetch expected word
     # -------------------------
     print("\n📚 STEP 4: Fetching expected word from DB...")
-    db = SessionLocal()
+    db: Session = SessionLocal()
+
     try:
         word = db.query(Word).filter(Word.id == word_id).first()
-
         if not word:
-            print("❌ Word not found in DB")
             raise HTTPException(status_code=404, detail="Word not found")
 
         expected = word.text
@@ -73,9 +74,6 @@ async def run_practice_flow(word_id: int,file: UploadFile, user_id: int, level_i
         # 5️⃣ Evaluate similarity
         # -------------------------
         print("\n📊 STEP 5: Comparing spoken vs expected...")
-        print(f"🔹 expected='{expected}'")
-        print(f"🔹 spoken='{spoken}'")
-
         similarity_percent, verdict = evaluate_similarity(expected, spoken)
 
         print(f"🧪 Similarity score = {similarity_percent}%")
@@ -89,83 +87,81 @@ async def run_practice_flow(word_id: int,file: UploadFile, user_id: int, level_i
         level_word = (
             db.query(LevelWord)
             .filter(
-                LevelWord.word_id == word_id,
                 LevelWord.user_id == user_id,
+                LevelWord.word_id == word_id,
                 LevelWord.level_id == level_id,
             )
             .first()
         )
 
         if not level_word:
-            print("🆕 No record found — creating new LevelWord entry")
+            print("🆕 Creating new LevelWord record")
             level_word = LevelWord(
                 user_id=user_id,
                 word_id=word_id,
                 level_id=level_id,
                 attempts=0,
                 correct_attempts=0,
-                mastery_score=0,
+                mastery_score=0.0,
+                highest_score=0.0,
                 is_mastered=False,
-                highest_score=0
             )
             db.add(level_word)
 
         level_word.attempts += 1
 
-        # Track correctness historically (optional analytics)
         if similarity_percent >= 80:
             level_word.correct_attempts += 1
             print("🎯 Counted as CORRECT attempt")
         else:
             print("❌ Counted as INCORRECT attempt")
 
-        # Historical ratio (for dashboards later)
         level_word.mastery_score = (
             level_word.correct_attempts / level_word.attempts
         )
 
-        # 🚀 NEW — Highest score ever matters
         if similarity_percent > (level_word.highest_score or 0):
             level_word.highest_score = similarity_percent
 
-        # Mastered flag = EVER got >= 80
         level_word.is_mastered = (level_word.highest_score or 0) >= 80
 
         db.commit()
 
-        print(f"📊 Attempts = {level_word.attempts}")
+        # 🛡️ extract values before closing session
+        attempts = level_word.attempts
+        highest_score = level_word.highest_score
+        is_mastered = level_word.is_mastered
+
+        print(f"📊 Attempts = {attempts}")
         print(f"🏆 Correct Attempts = {level_word.correct_attempts}")
         print(f"⭐ Mastery Score = {round(level_word.mastery_score, 2)}")
-        print(f"🔥 Highest Score = {level_word.highest_score}")
-        print(f"🟢 Mastered? {level_word.is_mastered}")
+        print(f"🔥 Highest Score = {highest_score}")
+        print(f"🟢 Mastered? {is_mastered}")
 
     finally:
         db.close()
 
     # -------------------------
-    # ⭐ 7️⃣ FEEDBACK + RECOMMENDATION
+    # 7️⃣ Feedback + Recommendation
     # -------------------------
-
     feedback_input = FeedbackIn(
         word=expected,
         spoken=spoken,
         similarity=similarity_percent,
-        attempts=level_word.attempts,
-        pace="custom"
+        attempts=attempts,
+        pace="custom",
     )
 
     print("\n💬 Generating Feedback...")
     feedback = generate_feedback(feedback_input)
-    print("📝 Feedback =", feedback)
 
     print("\n🧭 Generating Recommendation...")
     recommendation = recommend_next_step(feedback_input)
-    print("📌 Recommendation =", recommendation)
 
     # -------------------------
-    # 8️⃣ Return clean response
+    # 8️⃣ Final Response
     # -------------------------
-    print("\n🎉 STEP 8: Flow complete — sending response!\n")
+    print("\n🎉 PRACTICE FLOW COMPLETE\n")
 
     return {
         "file_id": file_id,
@@ -174,9 +170,9 @@ async def run_practice_flow(word_id: int,file: UploadFile, user_id: int, level_i
         "spoken": spoken,
         "similarity": similarity_percent,
         "verdict": verdict,
-        "is_mastered": level_word.is_mastered,
-        "attempts": level_word.attempts,
-        "highest_score": level_word.highest_score,
+        "is_mastered": is_mastered,
+        "attempts": attempts,
+        "highest_score": highest_score,
         "feedback": feedback,
-        "recommendation": recommendation
+        "recommendation": recommendation,
     }

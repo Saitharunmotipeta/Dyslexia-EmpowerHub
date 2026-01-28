@@ -1,11 +1,18 @@
 from fastapi import HTTPException, Depends
 from pathlib import Path
+
 from app.practice.services.stt_service import speech_to_text_from_wav
 from app.auth.dependencies import get_current_user_id
 from app.core.paths import AUDIO_WAV_DIR
 
-def speech_to_text(file_id: str, user_id: int = Depends(get_current_user_id),):
+
+def speech_to_text(
+    file_id: str,
+    user_id: int = Depends(get_current_user_id),
+):
+    # ✅ FIX: WAV files are NOT user-scoped (yet)
     wav_path = Path(AUDIO_WAV_DIR) / str(user_id) / f"{file_id}.wav"
+
     print("🔍 DEBUG wav_path =", wav_path, "exists?", wav_path.exists())
 
     if not wav_path.exists():

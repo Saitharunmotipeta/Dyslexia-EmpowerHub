@@ -1,15 +1,8 @@
 from pathlib import Path
 import os
 from pydub import AudioSegment
-
-# backend/
-BASE_DIR = Path(__file__).resolve().parents[3]
-
-UPLOAD_DIR = BASE_DIR / "temp" / "audio_uploads"
-WAV_DIR = BASE_DIR / "temp" / "audio_wav"
-
-os.makedirs(WAV_DIR, exist_ok=True)
-
+from app.core.paths import AUDIO_UPLOAD_DIR as UPLOAD_DIR
+from app.core.paths import AUDIO_WAV_DIR as WAV_DIR
 
 def convert_to_wav(file_id: str, user_id: int) -> str:
     """
