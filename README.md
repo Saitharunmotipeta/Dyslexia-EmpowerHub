@@ -13,9 +13,9 @@ dyslexia-learning-platform/
 ├── backend/
 │   ├── app/
 │   ├── media/
-│   ├── softwaremodels/
 │   └── README.md
 │
+├── softwaremodels/
 └── frontend/
     └── README.md   (coming soon)
 ```
