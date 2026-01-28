@@ -3,7 +3,7 @@
 from statistics import mean
 
 
-def trend_analysis(score: float, attempts: int, recent_scores: list[float] | None = None):
+def trend_analysis(score: float, attempts: int, recent_scores: list[float] | None = None) -> dict:
 
     if attempts <= 1:
         return {
