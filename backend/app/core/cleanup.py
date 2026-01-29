@@ -14,7 +14,8 @@ load_dotenv()
 DELETE_TEMP_AUDIO = os.getenv("DELETE_TEMP_AUDIO", "true").lower() == "true"
 
 # seconds (1 hour)
-MAX_AGE_SECONDS = 60 * 60
+TTL_MINUTES = int(os.getenv("TEMP_AUDIO_TTL_MINUTES", "60"))
+MAX_AGE_SECONDS = TTL_MINUTES * 60
 
 # =========================
 # HELPERS

@@ -7,6 +7,12 @@ load_dotenv()
 # ─── BASE DIR (KEEP THIS) ─────────────────────────
 BASE_DIR = Path(os.getenv("BASE_DIR", ".")).resolve()
 
+# ─── STATIC ASSETS ───────────────────────────────
+STATIC_ASSETS_BASE_URL = os.getenv("STATIC_ASSETS_BASE_URL", "").rstrip("/")
+
+STATIC_TTS_PREFIX = "tts/en"
+STATIC_IMAGE_PREFIX = "images/words"
+
 # ─── TEMP DIRS (SINGLE SOURCE) ───────────────────
 AUDIO_UPLOAD_DIR = BASE_DIR / os.getenv("UPLOAD_DIR", "temp/audio_uploads")
 AUDIO_WAV_DIR = BASE_DIR / os.getenv("WAV_DIR", "temp/audio_wav")

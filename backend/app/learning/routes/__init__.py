@@ -63,12 +63,14 @@ def update_word_status_endpoint(
 
 
 # TTS
-router.get("/tts/{word_id}")(
-    lambda word_id,
-           pace=Query(85),
-           db=Depends(get_db):
-        tts_word_handler(db, word_id, pace)
-)
+@router.get("/tts/{word_id}")
+def tts_word(
+    word_id: int,
+    pace: int = Query(85, ge=30,e=200),
+    db=Depends(get_db),
+):
+    return tts_word_handler(db, word_id, pace)
+
 
 @router.post(
     "/learn-auto",
