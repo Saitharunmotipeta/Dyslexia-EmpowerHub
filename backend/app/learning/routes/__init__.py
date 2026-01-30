@@ -66,10 +66,24 @@ def update_word_status_endpoint(
 @router.get("/tts/{word_id}")
 def tts_word(
     word_id: int,
-    pace: int = Query(85, ge=30,e=200),
-    db=Depends(get_db),
+    pace_mode: str = Query(
+        ...,
+        description="slow | medium | fast | custom"
+    ),
+    pace_value: int | None = Query(
+        None,
+        ge=30,
+        le=200,
+        description="Required only when pace_mode=custom"
+    ),
+    db: Session = Depends(get_db),
 ):
-    return tts_word_handler(db, word_id, pace)
+    return tts_word_handler(
+        db=db,
+        word_id=word_id,
+        pace_mode=pace_mode,
+        pace_value=pace_value,
+    )
 
 
 @router.post(

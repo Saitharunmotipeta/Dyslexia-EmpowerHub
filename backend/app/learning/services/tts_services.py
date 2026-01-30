@@ -1,33 +1,29 @@
-import uuid
-import pyttsx3
+import time
 from pathlib import Path
+import pyttsx3
 
-from app.core.paths import TTS_AUDIO_DIR
-# from app.core.config import settings  # if you have one
-import os
+from app.core.paths import TTS_CACHE_DIR
 
-# Speech rate mapping
-RATE_MAP = {
-    "slow": 40,
-    "medium": 85,
-    "fast": 120,
-}
-
-MAX_TEXT_LENGTH = 500
+TTL_SECONDS = 15 * 60  # 15 minutes
 
 
-def generate_tts_audio(text: str, pace: int = 85) -> str:
-    if not text or not text.strip():
-        raise ValueError("Text cannot be empty")
-
-    if len(text) > MAX_TEXT_LENGTH:
-        raise ValueError("Text too long for TTS")
-
-    # safety bounds (important)
+def generate_runtime_tts(text: str, pace: int) -> str:
     pace = max(40, min(pace, 200))
 
-    filename = f"{uuid.uuid4().hex}.wav"
-    filepath: Path = TTS_AUDIO_DIR / filename
+    # deterministic cache key
+    safe_text = text.lower().replace(" ", "_")
+    filename = f"{safe_text}_custom_{pace}.wav"
+    filepath: Path = TTS_CACHE_DIR / filename
+
+    # CACHE HIT
+    if filepath.exists():
+        age = time.time() - filepath.stat().st_mtime
+        if age < TTL_SECONDS:
+            print("♻️ TTS cache hit")
+            return f"/runtime-tts/{filename}"
+
+    # CACHE MISS
+    print("🆕 Generating runtime TTS")
 
     engine = pyttsx3.init()
     engine.setProperty("rate", pace)
@@ -41,8 +37,4 @@ def generate_tts_audio(text: str, pace: int = 85) -> str:
     engine.runAndWait()
     engine.stop()
 
-    base_url = os.getenv("STATIC_ASSETS_BASE_URL", "")
-    if base_url:
-        return f"{base_url}/tts_audio/{filename}"
-
-    return f"/static/tts_audio/{filename}"
+    return f"/runtime-tts/{filename}"

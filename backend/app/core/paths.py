@@ -21,9 +21,11 @@ AUDIO_SAMPLES_DIR = BASE_DIR / os.getenv(
     "AUDIO_SAMPLES_DIR", "tests/audio_samples"
 )
 
-TTS_AUDIO_DIR = BASE_DIR / os.getenv(
-    "TTS_AUDIO_DIR", "app/static/tts_audio"
-)
+# TTS_AUDIO_DIR = BASE_DIR / os.getenv(
+#     "TTS_AUDIO_DIR", "app/static/tts_audio"
+# )
+TTS_CACHE_DIR = BASE_DIR / "runtime_cache" / "tts"
+TTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── MODEL PATHS ─────────────────────────────────
 FFMPEG_PATH = BASE_DIR / os.getenv("FFMPEG_PATH")
@@ -34,7 +36,7 @@ PHONEME_MODEL_PATH = BASE_DIR / os.getenv("PHONEME_MODEL_PATH", "")
 # ─── ENSURE DIRS ─────────────────────────────────
 AUDIO_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 AUDIO_WAV_DIR.mkdir(parents=True, exist_ok=True)
-TTS_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+# TTS_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 # ─── DEBUG (TEMP) ─────────────────────────────────
 print("🔗 BASE_DIR =", BASE_DIR)

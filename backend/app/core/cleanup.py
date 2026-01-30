@@ -13,22 +13,24 @@ load_dotenv()
 # =========================
 DELETE_TEMP_AUDIO = os.getenv("DELETE_TEMP_AUDIO", "true").lower() == "true"
 
-# seconds (1 hour)
+# TTL from env (minutes → seconds)
 TTL_MINUTES = int(os.getenv("TEMP_AUDIO_TTL_MINUTES", "60"))
 MAX_AGE_SECONDS = TTL_MINUTES * 60
 
 # =========================
 # HELPERS
 # =========================
-def _cleanup_dir(base_dir: Path):
+def _cleanup_dir(base_dir: Path) -> int:
     """
     Delete files older than MAX_AGE_SECONDS inside base_dir.
     Preserves directory structure.
+    Returns number of deleted files.
     """
     if not base_dir.exists():
-        return
+        return 0
 
     now = time.time()
+    deleted_count = 0
 
     for root, _, files in os.walk(base_dir):
         for name in files:
@@ -37,9 +39,12 @@ def _cleanup_dir(base_dir: Path):
                 age = now - file_path.stat().st_mtime
                 if age > MAX_AGE_SECONDS:
                     file_path.unlink()
-                    print(f"🧹 Deleted temp file: {file_path}")
-            except Exception as e:
-                print(f"⚠️ Failed to delete {file_path}: {e}")
+                    deleted_count += 1
+            except Exception:
+                # swallow errors – cleanup must never crash app
+                pass
+
+    return deleted_count
 
 
 # =========================
@@ -54,7 +59,16 @@ def cleanup_temp_audio():
         print("🛑 Temp audio cleanup disabled (DELETE_TEMP_AUDIO=false)")
         return
 
-    print("🧹 Running temp audio cleanup...")
-    _cleanup_dir(AUDIO_UPLOAD_DIR)
-    _cleanup_dir(AUDIO_WAV_DIR)
-    print("✅ Temp audio cleanup complete")
+    print(f"🧹 Temp audio cleanup started (TTL={TTL_MINUTES} min)")
+
+    uploads_deleted = _cleanup_dir(AUDIO_UPLOAD_DIR)
+    wavs_deleted = _cleanup_dir(AUDIO_WAV_DIR)
+
+    total = uploads_deleted + wavs_deleted
+
+    print(
+        f"✅ Temp audio cleanup complete → "
+        f"uploads: {uploads_deleted}, "
+        f"wav: {wavs_deleted}, "
+        f"total: {total}"
+    )

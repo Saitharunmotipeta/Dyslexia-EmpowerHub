@@ -14,6 +14,7 @@ from app.learning.routes import router as learning_router
 from app.practice.routes import router as practice_router
 from app.insights.routes import router as feedback_router
 from app.mock.routes import router as mock_router
+from app.core.paths import TTS_CACHE_DIR
 
 
 Base.metadata.create_all(bind=engine)
@@ -28,7 +29,12 @@ app.include_router(practice_router)
 app.include_router(feedback_router)
 app.include_router(mock_router)
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount(
+    "/runtime-tts",
+    StaticFiles(directory=TTS_CACHE_DIR),
+    name="runtime-tts",
+)
 
 @app.get("/")
 def dyslexia():

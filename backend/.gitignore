@@ -23,4 +23,5 @@ temp/
 # Logs
 *.log
 app/static
+runtime_cache/
 
