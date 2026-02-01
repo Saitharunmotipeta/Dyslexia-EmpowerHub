@@ -13,7 +13,9 @@ def register_user(db: Session, name: str, email: str, password: str):
     user = User(
         name=name,
         email=email,
-        password=hash_password(password),
+        password_hash=hash_password(password),
+        streak_days=0,
+        total_login_days=0,
     )
 
     db.add(user)
@@ -25,17 +27,15 @@ def register_user(db: Session, name: str, email: str, password: str):
 def login_user(db: Session, email: str, password: str):
     user = db.query(User).filter(User.email == email).first()
 
-    if not user or not verify_password(password, user.password):
+    if not user or not verify_password(password, user.password_hash):
         return None
 
     today = date.today()
 
-    # ✅ STREAK LOGIC (CORPORATE STANDARD)
     if user.last_login_at:
         last_login_date = user.last_login_at.date()
-
         if today == last_login_date:
-            pass  # same-day login → no change
+            pass
         elif (today - last_login_date).days == 1:
             user.streak_days += 1
         else:
@@ -50,5 +50,4 @@ def login_user(db: Session, email: str, password: str):
     db.commit()
 
     token = create_access_token({"sub": str(user.id)})
-
     return token, user

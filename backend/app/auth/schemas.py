@@ -1,10 +1,14 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
+
+# ─────────────────────────────────────────────
+# INPUT SCHEMAS
+# ─────────────────────────────────────────────
 
 class RegisterIn(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2)
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6)
 
 
 class LoginIn(BaseModel):
@@ -12,19 +16,30 @@ class LoginIn(BaseModel):
     password: str
 
 
+class TTSRateUpdateIn(BaseModel):
+    tts_rate: int = Field(..., ge=50, le=150)
+
+
+# ─────────────────────────────────────────────
+# OUTPUT SCHEMAS
+# ─────────────────────────────────────────────
+
 class ProfileOut(BaseModel):
     id: int
     name: str
     email: str
     role: str
+
     streak_days: int
     total_login_days: int
+
     points: int
     total_time_spent: int
     courses_completed: int
+
     tts_rate: int
     badges: str
     achievements: str
 
-class TTSRateUpdateIn(BaseModel):
-    tts_rate: int  # expected range: 50–150
+    class Config:
+        from_attributes = True

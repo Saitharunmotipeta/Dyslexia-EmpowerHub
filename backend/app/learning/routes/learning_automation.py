@@ -8,7 +8,8 @@ from app.learning.services.orchestration_logic import run_learning_pipeline
 async def learning_automation_handler(
     level_id: int,
     word_id: int,
-    pace: int,
+    pace_mode: str,
+    pace_value: int | None,
     file: UploadFile = File(...),
     user_id: int = Depends(get_current_user_id),
 ):
@@ -20,6 +21,7 @@ async def learning_automation_handler(
         user_id=user_id,
         level_id=level_id,
         word_id=word_id,
-        pace=pace,
+        pace_mode=pace_mode,
+        pace_value=pace_value,
         file=file,
     )

@@ -31,7 +31,8 @@ async def run_learning_pipeline(
     user_id: int,
     level_id: int,
     word_id: int,
-    pace: int,
+    pace_mode: str,
+    pace_value: int | None,
     file: UploadFile,
 ):
     """
@@ -45,7 +46,8 @@ async def run_learning_pipeline(
     print(f"👤 User ID   : {user_id}")
     print(f"📚 Level ID  : {level_id}")
     print(f"📝 Word ID   : {word_id}")
-    print(f"🏃 Pace      : {pace}")
+    print(f"🏃 Pace Mode : {pace_mode}")
+    print(f"🎚 Pace Value: {pace_value}")
     print(f"🎤 File Name : {file.filename}")
     print("-" * 70)
 
@@ -72,7 +74,12 @@ async def run_learning_pipeline(
         # 2️⃣ TTS GENERATION / FETCH
         # =====================================================
         print("\n🔊 STEP 2: Generating / Fetching TTS audio...")
-        tts_res = tts_word_handler(db, word_id, pace)
+        tts_res = tts_word_handler(
+            db,
+            word_id,
+            pace_mode,
+            pace_value,
+        )
         tts_url = tts_res.get("audio_url")
         print(f"🎧 TTS audio ready → {tts_url}")
 
@@ -82,7 +89,7 @@ async def run_learning_pipeline(
         print("\n📥 STEP 3: Uploading learner audio...")
         uploaded = await upload_audio(file, user_id)
         file_id = uploaded.file_id
-        print(f"✅ Upload successful")
+        print("✅ Upload successful")
         print(f"🆔 File ID → {file_id}")
 
         # =====================================================
@@ -98,7 +105,6 @@ async def run_learning_pipeline(
         print("\n🗣️ STEP 5: Running Speech-to-Text (VOSK)...")
         stt_res = speech_to_text_from_wav(wav_path)
         spoken = stt_res.get("text", "").strip()
-
         print(f"🧠 Recognized Speech → '{spoken}'")
 
         # =====================================================
@@ -124,9 +130,8 @@ async def run_learning_pipeline(
             spoken=spoken,
             similarity=score,
             attempts=1,
-            pace="custom",
+            pace=pace_mode,
         )
-
         feedback = generate_feedback(feedback_input)
         print("📝 Feedback generated")
 

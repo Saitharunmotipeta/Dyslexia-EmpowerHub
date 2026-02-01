@@ -10,12 +10,14 @@ class User(Base):
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
     role = Column(String, default="student", nullable=False)
-    password = Column(String, nullable=False)
+
+    password_hash = Column(String, nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login_at = Column(DateTime, nullable=True)
     last_active_at = Column(DateTime, nullable=True)
-    tts_rate = Column(Integer, default=100)  # 50–150 range recommended
+
+    tts_rate = Column(Integer, default=100)
 
     streak_days = Column(Integer, default=0)
     total_login_days = Column(Integer, default=0)
@@ -24,5 +26,5 @@ class User(Base):
     badges = Column(String, default="")
     achievements = Column(String, default="")
 
-    total_time_spent = Column(Integer, default=0)  # in minutes
+    total_time_spent = Column(Integer, default=0)
     courses_completed = Column(Integer, default=0)

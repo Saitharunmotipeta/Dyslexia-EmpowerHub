@@ -3,16 +3,13 @@ from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.database.connection import SessionLocal
-from app.auth import schemas, service
-# from app.auth.schemas import TTSRateUpdateIn
-from app.auth.utils import decode_token, get_current_user_id
+from app.auth import schemas
 from app.auth.models import User
-from app.learning.models.word import Word
-# from app.learning.services.tts_service import generate_tts_audio
+from app.auth.service import register_user, login_user
+from app.auth.utils import decode_token
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-# ✅ SINGLE SOURCE OF TRUTH FOR AUTH
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -24,27 +21,40 @@ def get_db():
         db.close()
 
 
-# ✅ REGISTER (JSON)
+# ─────────────────────────────────────────────
+# REGISTER
+# ─────────────────────────────────────────────
 @router.post("/register")
 def register(data: schemas.RegisterIn, db: Session = Depends(get_db)):
-    user = service.register_user(db, data.name, data.email, data.password)
+    user = register_user(
+        db=db,
+        name=data.name,
+        email=data.email,
+        password=data.password,  # ✅ plaintext
+    )
+
     if not user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
     return {
         "message": "User registered successfully",
-        "user_id": user.id
+        "user_id": user.id,
     }
 
 
-# ✅ ✅ ✅ SINGLE LOGIN FOR BOTH SWAGGER + FRONTEND
+# ─────────────────────────────────────────────
+# LOGIN (Swagger + Frontend)
+# ─────────────────────────────────────────────
 @router.post("/login")
 def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),  # ✅ THIS IS THE KEY
-    db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
 ):
-    # ⚠️ Swagger sends "username" even if it's email
-    result = service.login_user(db, form_data.username, form_data.password)
+    result = login_user(
+        db=db,
+        email=form_data.username,
+        password=form_data.password,
+    )
 
     if not result:
         raise HTTPException(
@@ -59,15 +69,17 @@ def login(
         "token_type": "bearer",
         "user_id": user.id,
         "streak_days": user.streak_days,
-        "total_login_days": user.total_login_days
+        "total_login_days": user.total_login_days,
     }
 
 
-# ✅ PROFILE (JWT PROTECTED)
+# ─────────────────────────────────────────────
+# PROFILE
+# ─────────────────────────────────────────────
 @router.get("/profile")
 def get_profile(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     payload = decode_token(token)
     if not payload:
@@ -90,5 +102,5 @@ def get_profile(
         "total_time_spent": user.total_time_spent,
         "courses_completed": user.courses_completed,
         "badges": user.badges,
-        "achievements": user.achievements
+        "achievements": user.achievements,
     }

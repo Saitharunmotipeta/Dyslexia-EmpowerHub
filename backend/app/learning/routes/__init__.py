@@ -93,14 +93,16 @@ def tts_word(
 async def learn_auto(
     level_id: int,
     word_id: int,
+    pace_mode: str = Query("medium", regex="^(slow|medium|fast|custom)$"),
+    pace_value: int | None = Query(None, ge=40, le=200),
+    file: UploadFile = File(...),
     user_id: int = Depends(get_current_user_id),
-    pace: int = 60,
-    file: UploadFile = File(...)
 ):
     return await learning_automation_handler(
         level_id=level_id,
         word_id=word_id,
         user_id=user_id,
-        pace=pace,
-        file=file
+        pace_mode=pace_mode,
+        pace_value=pace_value,
+        file=file,
     )

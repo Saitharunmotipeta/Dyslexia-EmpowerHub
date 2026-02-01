@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import OAuth2PasswordBearer
 
-from app.database.connection import Base, engine
+# from app.database.connection import Base, engine
 from app.core.cleanup import cleanup_temp_audio
 from app.auth.routes import router as auth_router
 from app.learning.routes import router as learning_router
@@ -17,7 +17,7 @@ from app.mock.routes import router as mock_router
 from app.core.paths import TTS_CACHE_DIR
 
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Dyslexia Backend")
 
