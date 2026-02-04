@@ -1,33 +1,39 @@
 from fastapi import HTTPException, Depends
-from pathlib import Path
+from pydantic import BaseModel
 
-from app.practice.services.stt_service import speech_to_text_from_wav
 from app.auth.dependencies import get_current_user_id
-from app.core.paths import AUDIO_WAV_DIR
+
+
+class BrowserSTTIn(BaseModel):
+    text: str
 
 
 def speech_to_text(
-    file_id: str,
+    file_id: str,  # ⚠️ kept ONLY for backward compatibility
+    payload: BrowserSTTIn,
     user_id: int = Depends(get_current_user_id),
 ):
-    # ✅ FIX: WAV files are NOT user-scoped (yet)
-    wav_path = Path(AUDIO_WAV_DIR) / str(user_id) / f"{file_id}.wav"
+    """
+    Browser-based STT.
 
-    print("🔍 DEBUG wav_path =", wav_path, "exists?", wav_path.exists())
+    The browser performs speech recognition.
+    Backend only receives recognized text.
+    """
 
-    if not wav_path.exists():
-        raise HTTPException(status_code=404, detail="WAV file not found")
+    recognized = payload.text.strip().lower()
 
-    if wav_path.stat().st_size == 0:
-        raise HTTPException(status_code=400, detail="WAV file is empty")
+    if not recognized:
+        raise HTTPException(
+            status_code=400,
+            detail="Recognized text is empty",
+        )
 
-    try:
-        result = speech_to_text_from_wav(str(wav_path))
-        print(f"🎧 STT on {wav_path}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Speech-to-text failed: {e}")
+    print(
+        f"🗣️ Browser STT | user={user_id} | file_id={file_id} | text='{recognized}'"
+    )
 
     return {
         "file_id": file_id,
-        "recognized_text": result.get("text", ""),
+        "recognized_text": recognized,
+        "source": "browser",
     }

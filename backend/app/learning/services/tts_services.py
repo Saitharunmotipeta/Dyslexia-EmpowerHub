@@ -1,40 +1,27 @@
-import time
-from pathlib import Path
-import pyttsx3
+# app/learning/services/tts_services.py
 
-from app.core.paths import TTS_CACHE_DIR
+PACE_TO_RATE = {
+    "slow": 0.75,
+    "medium": 1.0,
+    "fast": 1.25,
+}
 
-TTL_SECONDS = 15 * 60  # 15 minutes
 
+def prepare_browser_tts(
+    text: str,
+    pace: str = "medium",
+) -> dict:
+    """
+    Returns metadata for browser-based TTS.
+    No audio generation happens here.
+    """
 
-def generate_runtime_tts(text: str, pace: int) -> str:
-    pace = max(40, min(pace, 200))
+    rate = PACE_TO_RATE.get(pace, 1.0)
 
-    # deterministic cache key
-    safe_text = text.lower().replace(" ", "_")
-    filename = f"{safe_text}_custom_{pace}.wav"
-    filepath: Path = TTS_CACHE_DIR / filename
-
-    # CACHE HIT
-    if filepath.exists():
-        age = time.time() - filepath.stat().st_mtime
-        if age < TTL_SECONDS:
-            print("♻️ TTS cache hit")
-            return f"/runtime-tts/{filename}"
-
-    # CACHE MISS
-    print("🆕 Generating runtime TTS")
-
-    engine = pyttsx3.init()
-    engine.setProperty("rate", pace)
-
-    for voice in engine.getProperty("voices"):
-        if "english" in voice.name.lower():
-            engine.setProperty("voice", voice.id)
-            break
-
-    engine.save_to_file(text, str(filepath))
-    engine.runAndWait()
-    engine.stop()
-
-    return f"/runtime-tts/{filename}"
+    return {
+        "engine": "browser",
+        "text": text,
+        "rate": rate,
+        "language": "en-US",
+        "hint": "Use SpeechSynthesisUtterance",
+    }

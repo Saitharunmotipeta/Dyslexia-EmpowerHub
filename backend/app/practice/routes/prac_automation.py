@@ -1,47 +1,39 @@
-# app/practice/routes/prac_automation.py
+from fastapi import HTTPException, Depends
+from pydantic import BaseModel
 
-from fastapi import UploadFile, File, HTTPException, Depends
 from app.practice.services.orchestrator_service import run_practice_flow
 from app.auth.dependencies import get_current_user_id
 
 
+class PracticeAutoIn(BaseModel):
+    word_id: int
+    level_id: int
+    spoken: str
+
+
 async def practice_auto(
-    word_id: int,
-    level_id: int,
-    file: UploadFile = File(...),
+    payload: PracticeAutoIn,
     user_id: int = Depends(get_current_user_id),
 ):
     """
-    Practice Automation Endpoint
+    Practice Automation (Browser-based STT)
 
-    Pipeline:
-    1️⃣ Save uploaded audio
-    2️⃣ Convert → WAV
-    3️⃣ Speech-to-Text
-    4️⃣ Evaluate pronunciation
-    5️⃣ Update progress tracking
-    6️⃣ Generate Feedback
-    7️⃣ Generate Recommendation
+    Browser handles speech recognition.
+    Backend handles evaluation + learning logic.
     """
 
     try:
         result = await run_practice_flow(
-            word_id=word_id,
-            file=file,
+            word_id=payload.word_id,
+            level_id=payload.level_id,
+            spoken=payload.spoken,
             user_id=user_id,
-            level_id = level_id,
-            )
+        )
 
         return {
             "status": "success",
-            "data": result
+            "data": result,
         }
 
     except HTTPException:
         raise
-
-    # except Exception as e:
-    #     raise HTTPException(
-    #         status_code=500,
-    #         detail=str(e)
-    #     )

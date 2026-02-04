@@ -7,10 +7,9 @@ from app.database.connection import SessionLocal
 from app.learning.models.word import Word
 from app.learning.models.level_word import LevelWord
 
-# Practice pipeline
+# Practice pipeline (UPLOAD + CONVERT ONLY)
 from app.practice.routes.upload import upload_audio
 from app.practice.services.audio_service import convert_to_wav
-from app.practice.services.stt_service import speech_to_text_from_wav
 from app.practice.services.eval_service import evaluate_similarity
 
 # Insights
@@ -33,11 +32,12 @@ async def run_learning_pipeline(
     word_id: int,
     pace_mode: str,
     pace_value: int | None,
+    spoken: str,
     file: UploadFile,
 ):
     """
     🎯 FULL LEARNING ORCHESTRATION PIPELINE
-    This is the SINGLE source of truth.
+    Browser-first STT, backend-only evaluation.
     """
 
     print("\n" + "=" * 70)
@@ -48,6 +48,7 @@ async def run_learning_pipeline(
     print(f"📝 Word ID   : {word_id}")
     print(f"🏃 Pace Mode : {pace_mode}")
     print(f"🎚 Pace Value: {pace_value}")
+    print(f"🗣️ Spoken    : {spoken}")
     print(f"🎤 File Name : {file.filename}")
     print("-" * 70)
 
@@ -71,20 +72,19 @@ async def run_learning_pipeline(
         print(f"✅ Word validated → '{expected}'")
 
         # =====================================================
-        # 2️⃣ TTS GENERATION / FETCH
+        # 2️⃣ TTS INSTRUCTION (STATIC / RUNTIME / BROWSER)
         # =====================================================
-        print("\n🔊 STEP 2: Generating / Fetching TTS audio...")
-        tts_res = tts_word_handler(
-            db,
-            word_id,
-            pace_mode,
-            pace_value,
+        print("\n🔊 STEP 2: Preparing TTS instruction...")
+        tts_instruction = tts_word_handler(
+            db=db,
+            word_id=word_id,
+            pace_mode=pace_mode,
+            pace_value=pace_value,
         )
-        tts_url = tts_res.get("audio_url")
-        print(f"🎧 TTS audio ready → {tts_url}")
+        print("🎧 TTS instruction =", tts_instruction)
 
         # =====================================================
-        # 3️⃣ AUDIO UPLOAD
+        # 3️⃣ AUDIO UPLOAD (FOR RECORD / FUTURE ANALYTICS)
         # =====================================================
         print("\n📥 STEP 3: Uploading learner audio...")
         uploaded = await upload_audio(file, user_id)
@@ -93,24 +93,16 @@ async def run_learning_pipeline(
         print(f"🆔 File ID → {file_id}")
 
         # =====================================================
-        # 4️⃣ CONVERT TO WAV
+        # 4️⃣ CONVERT TO WAV (OPTIONAL – KEPT FOR FUTURE)
         # =====================================================
         print("\n🎼 STEP 4: Converting audio → WAV...")
         wav_path = convert_to_wav(file_id, user_id)
         print(f"🎵 WAV file created at → {wav_path}")
 
         # =====================================================
-        # 5️⃣ SPEECH TO TEXT
+        # 5️⃣ EVALUATION (BROWSER STT)
         # =====================================================
-        print("\n🗣️ STEP 5: Running Speech-to-Text (VOSK)...")
-        stt_res = speech_to_text_from_wav(wav_path)
-        spoken = stt_res.get("text", "").strip()
-        print(f"🧠 Recognized Speech → '{spoken}'")
-
-        # =====================================================
-        # 6️⃣ EVALUATION
-        # =====================================================
-        print("\n📊 STEP 6: Evaluating pronunciation...")
+        print("\n📊 STEP 5: Evaluating pronunciation...")
         score, verdict = evaluate_similarity(expected, spoken)
 
         progress_this_attempt = score >= PROGRESS_THRESHOLD
@@ -122,9 +114,9 @@ async def run_learning_pipeline(
         print(f"🏆 Mastered now?   → {mastered_this_attempt}")
 
         # =====================================================
-        # 7️⃣ FEEDBACK ENGINE
+        # 6️⃣ FEEDBACK ENGINE
         # =====================================================
-        print("\n💬 STEP 7: Generating learner feedback...")
+        print("\n💬 STEP 6: Generating learner feedback...")
         feedback_input = FeedbackIn(
             word=expected,
             spoken=spoken,
@@ -136,16 +128,16 @@ async def run_learning_pipeline(
         print("📝 Feedback generated")
 
         # =====================================================
-        # 8️⃣ RECOMMENDATION ENGINE
+        # 7️⃣ RECOMMENDATION ENGINE
         # =====================================================
-        print("\n🧭 STEP 8: Generating next-step recommendation...")
+        print("\n🧭 STEP 7: Generating next-step recommendation...")
         recommendation = recommend_next_step(feedback_input)
         print("📌 Recommendation generated")
 
         # =====================================================
-        # 9️⃣ UPDATE LEARNING STATE (DB)
+        # 8️⃣ UPDATE LEARNING STATE
         # =====================================================
-        print("\n📦 STEP 9: Updating learning progress in DB...")
+        print("\n📦 STEP 8: Updating learning progress in DB...")
         level_word = db.query(LevelWord).filter(
             LevelWord.user_id == user_id,
             LevelWord.word_id == word_id,
@@ -153,7 +145,7 @@ async def run_learning_pipeline(
         ).first()
 
         if not level_word:
-            print("🆕 No existing record — creating new LevelWord")
+            print("🆕 Creating new LevelWord record")
             level_word = LevelWord(
                 user_id=user_id,
                 level_id=level_id,
@@ -210,16 +202,12 @@ async def run_learning_pipeline(
         "spoken": spoken,
         "similarity": score,
         "verdict": verdict,
-
         "progress_this_attempt": progress_this_attempt,
         "mastered_this_attempt": mastered_this_attempt,
-
         "highest_score": highest_score,
         "total_attempts": total_attempts,
         "mastery_overall": mastery_overall,
-
         "feedback": feedback,
         "recommendation": recommendation,
-
-        "tts_audio": tts_url,
+        "tts": tts_instruction,
     }

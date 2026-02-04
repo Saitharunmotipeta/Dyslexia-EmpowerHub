@@ -88,14 +88,14 @@ def tts_word(
 
 @router.post(
     "/learn-auto",
-    summary="Learning Automation Endpoint",
+    summary="Learning Automation Endpoint (Browser STT)",
 )
 async def learn_auto(
     level_id: int,
     word_id: int,
+    spoken: str = Body(..., embed=True),
     pace_mode: str = Query("medium", regex="^(slow|medium|fast|custom)$"),
     pace_value: int | None = Query(None, ge=40, le=200),
-    file: UploadFile = File(...),
     user_id: int = Depends(get_current_user_id),
 ):
     return await learning_automation_handler(
@@ -104,5 +104,5 @@ async def learn_auto(
         user_id=user_id,
         pace_mode=pace_mode,
         pace_value=pace_value,
-        file=file,
+        spoken=spoken,
     )

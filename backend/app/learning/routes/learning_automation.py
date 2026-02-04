@@ -10,6 +10,7 @@ async def learning_automation_handler(
     word_id: int,
     pace_mode: str,
     pace_value: int | None,
+    spoken: str,
     file: UploadFile = File(...),
     user_id: int = Depends(get_current_user_id),
 ):
@@ -17,11 +18,16 @@ async def learning_automation_handler(
     HTTP entry point only.
     Business logic lives in service layer.
     """
+
+    print("🌐 LEARNING AUTOMATION HANDLER")
+    print("🗣️ Spoken from browser =", spoken)
+
     return await run_learning_pipeline(
         user_id=user_id,
         level_id=level_id,
         word_id=word_id,
         pace_mode=pace_mode,
         pace_value=pace_value,
+        spoken=spoken,
         file=file,
     )

@@ -1,34 +1,19 @@
-# app/core/mediaprocessor.py
+# app/core/media_bootstrap.py
+
+"""
+Media bootstrap (BROWSER-FIRST)
+
+✔ STT handled in browser (Web Speech API)
+✔ TTS handled via browser OR runtime TTS
+✔ No ffmpeg dependency
+✔ Safe for free-tier deployment
+"""
 
 import os
 from dotenv import load_dotenv
-from pydub import AudioSegment
-
-from app.core.paths import BASE_DIR, FFMPEG_PATH, FFPROBE_PATH
 
 load_dotenv()
 
-# ─── VALIDATION ──────────────────────────────────
-if not FFMPEG_PATH.exists():
-    raise RuntimeError(f"FFmpeg not found at {FFMPEG_PATH}")
-
-if not FFPROBE_PATH.exists():
-    raise RuntimeError(f"FFprobe not found at {FFPROBE_PATH}")
-
-# ─── FORCE ENVIRONMENT FOR PYDUB ─────────────────
-os.environ["FFMPEG_BINARY"] = str(FFMPEG_PATH)
-os.environ["FFPROBE_BINARY"] = str(FFPROBE_PATH)
-
-# Ensure ffmpeg is on PATH (Windows-safe)
-os.environ["PATH"] = (
-    str(FFMPEG_PATH.parent)
-    + os.pathsep
-    + os.environ.get("PATH", "")
-)
-
-# ─── FORCE PYDUB BINDINGS ─────────────────────────
-AudioSegment.converter = str(FFMPEG_PATH)
-AudioSegment.ffprobe = str(FFPROBE_PATH)
-
-print("✅ FFmpeg initialized:", FFMPEG_PATH)
-print("✅ FFprobe initialized:", FFPROBE_PATH)
+print("🔊 TTS_ENGINE = browser")
+print("🗣️ STT_ENGINE = browser")
+# print("⚠️ FFmpeg is NOT required (by design)")
