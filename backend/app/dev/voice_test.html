@@ -2,86 +2,119 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Dyslexia Voice Test – Dev Tool</title>
+  <title>Dyslexia Voice Test – Learning Debug Tool</title>
 
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: system-ui, Arial, sans-serif;
       background: #f6f7fb;
       padding: 30px;
     }
 
     h1 {
-      color: #222;
+      color: #111;
+      margin-bottom: 10px;
+    }
+
+    p.subtitle {
+      color: #555;
+      margin-bottom: 25px;
     }
 
     .box {
       background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      margin-top: 20px;
-      max-width: 600px;
+      padding: 22px;
+      border-radius: 10px;
+      max-width: 720px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
     }
 
     label {
-      font-weight: bold;
+      font-weight: 600;
       display: block;
-      margin-top: 15px;
+      margin-top: 16px;
     }
 
     input, select, button {
-      padding: 10px;
       margin-top: 6px;
+      padding: 10px;
       width: 100%;
-      font-size: 16px;
+      font-size: 15px;
     }
 
     button {
       cursor: pointer;
-      margin-top: 15px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 6px;
     }
 
-    .output {
-      margin-top: 15px;
-      padding: 10px;
+    button.secondary {
+      background: #0f766e;
+    }
+
+    button.warn {
+      background: #b91c1c;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .row button {
+      flex: 1;
+    }
+
+    img.word-image {
+      margin-top: 14px;
+      max-width: 160px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    pre.output {
       background: #eef2ff;
-      border-radius: 6px;
-      font-weight: bold;
+      padding: 12px;
+      border-radius: 8px;
+      margin-top: 12px;
+      white-space: pre-wrap;
+      font-size: 14px;
     }
 
     .error {
       color: #b91c1c;
       margin-top: 10px;
-    }
-
-    .success {
-      color: #065f46;
-      margin-top: 10px;
+      font-weight: 600;
     }
   </style>
 </head>
 
 <body>
 
-<h1>🎤 Dyslexia Voice Test (Browser STT + TTS)</h1>
+<h1>🎤 Dyslexia Voice Test</h1>
+<p class="subtitle">Browser STT + TTS • Learning DB Pipeline • Debug Console</p>
 
 <div class="box">
 
-  <!-- TOKEN -->
+  <!-- AUTH -->
   <label>🔑 JWT Token</label>
   <input id="tokenInput" placeholder="Paste JWT token here" />
-
   <button onclick="connectBackend()">🔌 Connect Backend</button>
 
   <!-- LEVEL -->
-  <label>📚 Select Level</label>
+  <label>📚 Level</label>
   <select id="levelSelect" onchange="loadWords()"></select>
 
   <!-- WORD -->
-  <label>📝 Select Word</label>
-  <select id="wordSelect"></select>
+  <label>📝 Word</label>
+  <select id="wordSelect" onchange="updateImage()"></select>
 
-  <!-- PACE MODE -->
+  <img id="wordImage" class="word-image" />
+
+  <!-- PACE -->
   <label>⏱ Pace Mode</label>
   <select id="paceMode" onchange="toggleCustomPace()">
     <option value="slow">Slow</option>
@@ -90,63 +123,50 @@
     <option value="custom">Custom</option>
   </select>
 
-  <!-- CUSTOM PACE -->
   <label>🎚 Custom Pace (40–200)</label>
   <input id="customPace" type="number" min="40" max="200" value="80" disabled />
 
   <!-- ACTIONS -->
-  <button onclick="playTTS()">🔊 Play TTS</button>
-  <button onclick="startSTT()">🎙 Speak</button>
-  <button onclick="evaluatePronunciation()">🧪 Evaluate</button>
+  <div class="row">
+    <button onclick="playTTS()">🔊 Play TTS</button>
+    <button class="secondary" onclick="startSTT()">🎙 Speak</button>
+    <button class="warn" onclick="evaluateAndLearn()">🧪 Evaluate</button>
+  </div>
 
-  <div id="output" class="output"></div>
+  <!-- OUTPUT -->
+  <pre id="output" class="output"></pre>
+  <pre id="feedbackBox" class="output"></pre>
+  <pre id="recommendationBox" class="output"></pre>
+
   <div id="error" class="error"></div>
 
 </div>
 
 <script>
 const API_BASE = "http://127.0.0.1:8000";
+const STATIC_ASSETS = "https://dyslexia-static-assets.onrender.com";
+
+let AUTH_HEADER = {};
 let spokenText = "";
 
-// -------------------------
-// CONNECT
-// -------------------------
+// ---------------- CONNECT ----------------
 async function connectBackend() {
   clearMsg();
 
-  const token = document.getElementById("tokenInput").value.trim();
-  if (!token) {
-    showError("JWT token required");
-    return;
-  }
+  const token = tokenInput.value.trim();
+  if (!token) return showError("JWT token required");
 
-  window.AUTH_HEADER = {
-    "Authorization": "Bearer " + token
-  };
+  AUTH_HEADER = { Authorization: "Bearer " + token };
 
   await loadLevels();
 }
 
-// -------------------------
-// LOAD LEVELS
-// -------------------------
+// ---------------- LEVELS ----------------
 async function loadLevels() {
-  clearMsg();
-  console.log("📤 Fetching levels...");
-
-  const res = await fetch(`${API_BASE}/learning/levels`, {
-    headers: AUTH_HEADER
-  });
-
-  if (!res.ok) {
-    showError("Failed to load levels");
-    return;
-  }
+  const res = await fetch(`${API_BASE}/learning/levels`, { headers: AUTH_HEADER });
+  if (!res.ok) return showError("Failed to load levels");
 
   const levels = await res.json();
-  console.log("📥 Levels:", levels);
-
-  const levelSelect = document.getElementById("levelSelect");
   levelSelect.innerHTML = "";
 
   levels.forEach(l => {
@@ -159,33 +179,24 @@ async function loadLevels() {
   await loadWords();
 }
 
-// -------------------------
-// LOAD WORDS
-// -------------------------
+// ---------------- WORDS ----------------
 async function loadWords() {
   clearMsg();
-
-  const levelId = document.getElementById("levelSelect").value;
-  console.log("📤 Fetching words for level", levelId);
+  const levelId = levelSelect.value;
 
   const res = await fetch(
     `${API_BASE}/learning/levels/${levelId}/words`,
     { headers: AUTH_HEADER }
   );
 
-  const wordSelect = document.getElementById("wordSelect");
   wordSelect.innerHTML = "";
 
   if (res.status === 401) {
-    showError("🔒 Level locked. Complete mock test to unlock.");
-    wordSelect.disabled = true;
+    showError("🔒 Level locked — complete mock test");
     return;
   }
 
   const words = await res.json();
-  console.log("📥 Words:", words);
-
-  wordSelect.disabled = false;
 
   words.forEach(w => {
     const opt = document.createElement("option");
@@ -193,136 +204,111 @@ async function loadWords() {
     opt.textContent = w.word || w.text;
     wordSelect.appendChild(opt);
   });
+
+  updateImage();
 }
 
-// -------------------------
-// TTS
-// -------------------------
+// ---------------- IMAGE ----------------
+function updateImage() {
+  const word = wordSelect.selectedOptions[0]?.text;
+  if (!word) return;
+  wordImage.src = `${STATIC_ASSETS}/images/words/${word}.jpg`;
+}
+
+// ---------------- TTS ----------------
 function playTTS() {
-  clearMsg();
+  const word = wordSelect.selectedOptions[0]?.text;
+  if (!word) return showError("Select a word");
 
-  const word = document.getElementById("wordSelect").selectedOptions[0]?.text;
-  if (!word) {
-    showError("Select a word first");
-    return;
-  }
+  const mode = paceMode.value;
+  const custom = Number(customPace.value);
 
-  const mode = document.getElementById("paceMode").value;
-  const custom = Number(document.getElementById("customPace").value);
+  const u = new SpeechSynthesisUtterance(word);
 
-  const utterance = new SpeechSynthesisUtterance(word);
-
-  if (mode === "slow") utterance.rate = 0.6;
-  if (mode === "medium") utterance.rate = 0.85;
-  if (mode === "fast") utterance.rate = 1.1;
-  if (mode === "custom") utterance.rate = custom / 100;
-
-  utterance.pitch = 1;
-  utterance.volume = 1;
+  if (mode === "slow") u.rate = 0.6;
+  if (mode === "medium") u.rate = 0.85;
+  if (mode === "fast") u.rate = 1.1;
+  if (mode === "custom") u.rate = custom / 100;
 
   speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-
-  console.log("🔊 TTS:", word, mode);
+  speechSynthesis.speak(u);
 }
 
-// -------------------------
-// STT
-// -------------------------
+// ---------------- STT ----------------
 function startSTT() {
-  clearMsg();
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return showError("Speech recognition not supported");
 
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r = new SR();
+  r.lang = "en-US";
 
-  if (!SpeechRecognition) {
-    showError("Speech recognition not supported");
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "en-US";
-  recognition.interimResults = false;
-
-  recognition.onresult = e => {
+  r.onresult = e => {
     spokenText = e.results[0][0].transcript;
-    document.getElementById("output").innerText =
-      "🧠 You said: " + spokenText;
-    console.log("🎙 STT:", spokenText);
+    output.innerText = `🧠 You said: ${spokenText}`;
   };
 
-  recognition.onerror = e => showError("STT error");
-
-  recognition.start();
+  r.start();
 }
 
-// -------------------------
-// EVALUATE
-// -------------------------
-async function evaluatePronunciation() {
+// ---------------- EVALUATE + LEARN ----------------
+async function evaluateAndLearn() {
   clearMsg();
 
-  if (!spokenText) {
-    showError("🎙 Please speak first");
-    return;
-  }
+  if (!spokenText) return showError("Speak first");
 
-  const wordSelect = document.getElementById("wordSelect");
-  const wordId = wordSelect.value;
-  const wordText = wordSelect.selectedOptions[0]?.text;
+  const wordId = Number(wordSelect.value);
+  const levelId = Number(levelSelect.value);
 
-  if (!wordId) {
-    showError("📘 Please select a word");
-    return;
-  }
-
-  console.log("🧪 Evaluating:", {
-    word_id: wordId,
-    recognized_text: spokenText
-  });
-
-  const res = await fetch(`${API_BASE}/practice/evaluate`, {
+  // 1️⃣ Pure evaluation
+  const evalRes = await fetch(`${API_BASE}/practice/evaluate`, {
     method: "POST",
-    headers: {
-      ...AUTH_HEADER,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      word_id: Number(wordId),
-      recognized_text: spokenText
-    })
+    headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
+    body: JSON.stringify({ word_id: wordId, recognized_text: spokenText })
   });
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("❌ Evaluation failed:", err);
-    showError("Evaluation failed — check console");
-    return;
+  const evalData = await evalRes.json();
+
+  output.innerText =
+`📘 Expected: ${evalData.expected}
+🗣 Spoken: ${evalData.recognized}
+📊 Score: ${evalData.score}
+⚖ Verdict: ${evalData.verdict}`;
+
+  // 2️⃣ Learning DB update
+  const form = new FormData();
+  form.append("level_id", levelId);
+  form.append("word_id", wordId);
+  form.append("pace_mode", paceMode.value);
+  if (paceMode.value === "custom") {
+    form.append("pace_value", customPace.value);
   }
+  form.append("spoken", spokenText);
+  form.append("file", new Blob([]), "dummy.wav");
 
-  const result = await res.json();
-  console.log("✅ Evaluation result:", result);
+  const learnRes = await fetch(`${API_BASE}/learning/learn-auto`, {
+    method: "POST",
+    headers: AUTH_HEADER,
+    body: form
+  });
 
-  document.getElementById("output").innerText =
-`📘 Word: ${result.expected}
-🗣 You said: ${result.recognized}
-📊 Score: ${result.score}
-⚖ Verdict: ${result.verdict}
-🏆 Correct: ${result.is_correct ? "Yes" : "No"}`;
+  const learnData = await learnRes.json();
+
+  feedbackBox.innerText = "💬 FEEDBACK\n" + JSON.stringify(learnData.feedback, null, 2);
+  recommendationBox.innerText =
+    "🧭 RECOMMENDATION\n" + JSON.stringify(learnData.recommendation, null, 2);
 }
 
-// -------------------------
+// ---------------- HELPERS ----------------
 function toggleCustomPace() {
-  const mode = document.getElementById("paceMode").value;
-  document.getElementById("customPace").disabled = mode !== "custom";
+  customPace.disabled = paceMode.value !== "custom";
 }
 
 function showError(msg) {
-  document.getElementById("error").innerText = msg;
+  error.innerText = msg;
 }
 
 function clearMsg() {
-  document.getElementById("error").innerText = "";
+  error.innerText = "";
 }
 </script>
 
