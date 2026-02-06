@@ -9,6 +9,7 @@ def get_level_word(db: Session, user_id: int, word_id: int) -> LevelWord | None:
     """
     Get LevelWord record for a user and word, or None if not exists.
     """
+    print("🔍 Fetching LevelWord record for user_id=", user_id, "and word_id=", word_id)
     return (
         db.query(LevelWord)
         .filter(LevelWord.user_id == user_id, LevelWord.word_id == word_id)
@@ -20,6 +21,7 @@ def create_level_word(db: Session, user_id: int, word_id: int) -> LevelWord:
     """
     Create a new LevelWord record for a user and word.
     """
+    print("🆕 Creating new LevelWord for user_id=", user_id, "and word_id=", word_id)
     level_word = LevelWord(
         user_id=user_id,
         word_id=word_id,
@@ -31,6 +33,7 @@ def create_level_word(db: Session, user_id: int, word_id: int) -> LevelWord:
     db.add(level_word)
     db.commit()
     db.refresh(level_word)
+    print("✅ LevelWord created successfully with id=", level_word.id)
     return level_word
 
 
@@ -43,6 +46,7 @@ def update_level_word(
     """
     Update LevelWord record based on a practice attempt.
     """
+    print("✏️ Updating LevelWord with id=", level_word.id)
     level_word.attempts += 1
 
     if is_correct:
@@ -58,6 +62,7 @@ def update_level_word(
 
     db.commit()
     db.refresh(level_word)
+    print("📊 Updated LevelWord: attempts=", level_word.attempts, ", correct_attempts=", level_word.correct_attempts, ", mastery_score=", level_word.mastery_score)
     return level_word
 
 
@@ -65,6 +70,7 @@ def reset_level_word(db: Session, level_word: LevelWord) -> LevelWord:
     """
     Reset LevelWord record to initial state.
     """
+    print("🔄 Resetting LevelWord with id=", level_word.id)
     level_word.attempts = 0
     level_word.correct_attempts = 0
     level_word.mastery_score = 0.0
@@ -74,6 +80,7 @@ def reset_level_word(db: Session, level_word: LevelWord) -> LevelWord:
 
     db.commit()
     db.refresh(level_word)
+    print("✅ LevelWord reset successfully")
     return level_word
 
 
@@ -81,4 +88,5 @@ def get_all_level_words(db: Session, user_id: int) -> List[LevelWord]:
     """
     Get all LevelWord records for a user.
     """
+    print("📂 Fetching all LevelWord records for user_id=", user_id)
     return db.query(LevelWord).filter(LevelWord.user_id == user_id).all()

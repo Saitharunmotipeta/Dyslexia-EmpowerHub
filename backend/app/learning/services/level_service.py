@@ -10,10 +10,12 @@ def get_levels_with_stats(db: Session, user_id: int) -> List[Tuple[Level, int, i
     """
     Returns list of (level, total_words, mastered_words) for this user.
     """
+    print("🔍 Fetching levels with stats for user_id=", user_id)
     levels = db.query(Level).order_by(Level.order).all()
     result = []
 
     for level in levels:
+        print("📂 Processing level_id=", level.id)
         words = db.query(Word).filter(Word.level_id == level.id).all()
         total_words = len(words)
 
@@ -31,8 +33,10 @@ def get_levels_with_stats(db: Session, user_id: int) -> List[Tuple[Level, int, i
                 .count()
             )
 
+        print(f"📊 Level {level.id}: total_words={total_words}, mastered_words={mastered_words}")
         result.append((level, total_words, mastered_words))
 
+    print("✅ Levels with stats fetched successfully")
     return result
 
 
@@ -43,6 +47,7 @@ def get_levels_with_stats_open(db: Session):
     """
     from sqlalchemy import func, literal
 
+    print("🔓 Fetching open levels with stats")
     return (
         db.query(
             Level,

@@ -8,6 +8,7 @@ def get_words_for_level(db: Session, user_id: int, level_id: int):
     """
     Returns words in a level along with user-specific learning status.
     """
+    print("🔍 Fetching words for level_id=", level_id, "and user_id=", user_id)
     words = db.query(Word).filter(Word.level_id == level_id).all()
     word_ids = [w.id for w in words]
 
@@ -30,6 +31,7 @@ def get_words_for_level(db: Session, user_id: int, level_id: int):
             }
         )
 
+    print("✅ Words fetched successfully for level_id=", level_id)
     return result
 
 
@@ -37,4 +39,5 @@ def get_words_for_level_open(db: Session, level_id: int):
     """
     Open version of words in a level (no mastery, no attempts).
     """
+    print("🔓 Fetching open words for level_id=", level_id)
     return db.query(Word).filter(Word.level_id == level_id).all()

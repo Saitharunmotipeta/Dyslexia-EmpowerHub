@@ -10,6 +10,7 @@ def generate_feedback(data: FeedbackIn) -> FeedbackOut:
     score = data.similarity
     attempts = data.attempts
 
+    print("🔍 Generating feedback for word=", data.word, "and spoken=", data.spoken)
     trend = trend_analysis(score, attempts, recent_scores=None)
     pattern = detect_error_pattern(data.word, data.spoken)
 

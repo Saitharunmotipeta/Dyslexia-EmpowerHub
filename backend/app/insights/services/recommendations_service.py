@@ -8,6 +8,7 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
     attempts = data.attempts
     pace = data.pace or "medium"
 
+    print("🔍 Recommending next step for word=", data.word, "and spoken=", data.spoken)
     metrics = {
         "score": score,
         "attempts": attempts,
@@ -119,4 +120,4 @@ def _log_metrics_and_result(decision: str, metrics: dict, rec: RecommendationOut
     print(f"   📌 Next Steps:")
     for step in rec.next_steps:
         print(f"      • {step}")
-    print("=========================================================\n")
+    print("=========================================================")
