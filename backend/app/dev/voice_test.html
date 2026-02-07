@@ -2,120 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Dyslexia Voice Test – Learning Debug Tool</title>
+  <title>Dyslexia Learning – Voice Practice</title>
 
   <style>
     body {
-      font-family: system-ui, Arial, sans-serif;
-      background: #f6f7fb;
-      padding: 30px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f4f6fb;
+      padding: 32px;
+      color: #1f2937;
     }
 
     h1 {
-      color: #111;
+      font-weight: 600;
       margin-bottom: 10px;
     }
 
-    p.subtitle {
-      color: #555;
-      margin-bottom: 25px;
-    }
-
     .box {
-      background: #fff;
-      padding: 22px;
-      border-radius: 10px;
-      max-width: 720px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 12px;
+      max-width: 820px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
     }
 
     label {
-      font-weight: 600;
+      margin-top: 18px;
       display: block;
-      margin-top: 16px;
+      font-weight: 600;
     }
 
     input, select, button {
-      margin-top: 6px;
-      padding: 10px;
       width: 100%;
+      margin-top: 6px;
+      padding: 12px;
       font-size: 15px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
     }
 
     button {
+      margin-top: 16px;
       cursor: pointer;
       background: #4f46e5;
-      color: white;
+      color: #fff;
       border: none;
-      border-radius: 6px;
     }
 
     button.secondary {
-      background: #0f766e;
-    }
-
-    button.warn {
-      background: #b91c1c;
-    }
-
-    .row {
-      display: flex;
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .row button {
-      flex: 1;
-    }
-
-    img.word-image {
-      margin-top: 14px;
-      max-width: 160px;
-      border-radius: 8px;
-      border: 1px solid #ddd;
-    }
-
-    pre.output {
       background: #eef2ff;
-      padding: 12px;
-      border-radius: 8px;
+      color: #3730a3;
+      border: 1px solid #c7d2fe;
+    }
+
+    img {
       margin-top: 12px;
-      white-space: pre-wrap;
+      max-width: 180px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      display: none;
+    }
+
+    .output {
+      margin-top: 20px;
+      padding: 16px;
+      background: #f1f5f9;
+      border-radius: 10px;
+      white-space: pre-line;
       font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .hint {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #6b7280;
     }
 
     .error {
       color: #b91c1c;
-      margin-top: 10px;
       font-weight: 600;
+      margin-top: 10px;
     }
   </style>
 </head>
 
 <body>
 
-<h1>🎤 Dyslexia Voice Test</h1>
-<p class="subtitle">Browser STT + TTS • Learning DB Pipeline • Debug Console</p>
+<h1>🎤 Word Practice (Dyslexia-Friendly)</h1>
 
 <div class="box">
 
-  <!-- AUTH -->
   <label>🔑 JWT Token</label>
   <input id="tokenInput" placeholder="Paste JWT token here" />
-  <button onclick="connectBackend()">🔌 Connect Backend</button>
+  <button onclick="connectBackend()">Connect</button>
 
-  <!-- LEVEL -->
   <label>📚 Level</label>
   <select id="levelSelect" onchange="loadWords()"></select>
 
-  <!-- WORD -->
   <label>📝 Word</label>
-  <select id="wordSelect" onchange="updateImage()"></select>
+  <select id="wordSelect" onchange="onWordSelected()"></select>
 
-  <img id="wordImage" class="word-image" />
+  <label>🖼 Visual Hint</label>
+  <img id="wordImage" />
 
-  <!-- PACE -->
-  <label>⏱ Pace Mode</label>
+  <label>⏱ Speaking Pace</label>
   <select id="paceMode" onchange="toggleCustomPace()">
     <option value="slow">Slow</option>
     <option value="medium" selected>Medium</option>
@@ -123,192 +113,203 @@
     <option value="custom">Custom</option>
   </select>
 
-  <label>🎚 Custom Pace (40–200)</label>
   <input id="customPace" type="number" min="40" max="200" value="80" disabled />
 
-  <!-- ACTIONS -->
-  <div class="row">
-    <button onclick="playTTS()">🔊 Play TTS</button>
-    <button class="secondary" onclick="startSTT()">🎙 Speak</button>
-    <button class="warn" onclick="evaluateAndLearn()">🧪 Evaluate</button>
-  </div>
+  <button class="secondary" onclick="playTTS()">🔊 Hear the word</button>
+  <button onclick="startSTT()">🎙 Speak the word</button>
+  <div class="hint">Say the word slowly. It’s okay if it’s not perfect.</div>
 
-  <!-- OUTPUT -->
-  <pre id="output" class="output"></pre>
-  <pre id="feedbackBox" class="output"></pre>
-  <pre id="recommendationBox" class="output"></pre>
+  <button onclick="evaluatePronunciation()">🧪 Check Pronunciation</button>
 
+  <div id="output" class="output"></div>
   <div id="error" class="error"></div>
 
 </div>
 
 <script>
-const API_BASE = "http://127.0.0.1:8000";
-const STATIC_ASSETS = "https://dyslexia-static-assets.onrender.com";
+const API = "http://127.0.0.1:8000";
+const STATIC = "https://dyslexia-static-assets.onrender.com";
 
-let AUTH_HEADER = {};
+let AUTH = {};
 let spokenText = "";
+let evaluationResult = null;
 
-// ---------------- CONNECT ----------------
+/* ---------- Helpers ---------- */
+
+function normalizeSpoken(text) {
+  text = text.toLowerCase().replace(/[^a-z ]/g, "").trim();
+
+  // merge spelled letters: "c a t" → "cat"
+  const parts = text.split(" ");
+  if (parts.length > 1 && parts.every(p => p.length === 1)) {
+    return parts.join("");
+  }
+
+  // take the first meaningful word
+  return parts[0] || "";
+}
+
+function clearUI() {
+  error.innerText = "";
+}
+
+/* ---------- Backend ---------- */
+
 async function connectBackend() {
-  clearMsg();
-
+  clearUI();
   const token = tokenInput.value.trim();
-  if (!token) return showError("JWT token required");
+  if (!token) return error.innerText = "JWT token required";
 
-  AUTH_HEADER = { Authorization: "Bearer " + token };
-
+  AUTH = { Authorization: "Bearer " + token };
   await loadLevels();
 }
 
-// ---------------- LEVELS ----------------
 async function loadLevels() {
-  const res = await fetch(`${API_BASE}/learning/levels`, { headers: AUTH_HEADER });
-  if (!res.ok) return showError("Failed to load levels");
-
+  const res = await fetch(`${API}/learning/levels`, { headers: AUTH });
   const levels = await res.json();
   levelSelect.innerHTML = "";
 
   levels.forEach(l => {
-    const opt = document.createElement("option");
-    opt.value = l.id;
-    opt.textContent = `Level ${l.id}: ${l.name}`;
-    levelSelect.appendChild(opt);
+    const o = document.createElement("option");
+    o.value = l.id;
+    o.textContent = `Level ${l.id} – ${l.name}`;
+    levelSelect.appendChild(o);
   });
 
-  await loadWords();
+  loadWords();
 }
 
-// ---------------- WORDS ----------------
 async function loadWords() {
-  clearMsg();
-  const levelId = levelSelect.value;
-
   const res = await fetch(
-    `${API_BASE}/learning/levels/${levelId}/words`,
-    { headers: AUTH_HEADER }
+    `${API}/learning/levels/${levelSelect.value}/words`,
+    { headers: AUTH }
   );
-
-  wordSelect.innerHTML = "";
-
-  if (res.status === 401) {
-    showError("🔒 Level locked — complete mock test");
-    return;
-  }
-
   const words = await res.json();
 
-  words.forEach(w => {
-    const opt = document.createElement("option");
-    opt.value = w.word_id || w.id;
-    opt.textContent = w.word || w.text;
-    wordSelect.appendChild(opt);
-  });
+  wordSelect.innerHTML = "";
+  wordImage.style.display = "none";
 
-  updateImage();
+  words.forEach(w => {
+    const o = document.createElement("option");
+    o.value = w.word_id || w.id;
+    o.textContent = w.word || w.text;
+    wordSelect.appendChild(o);
+  });
 }
 
-// ---------------- IMAGE ----------------
-function updateImage() {
+function onWordSelected() {
   const word = wordSelect.selectedOptions[0]?.text;
   if (!word) return;
-  wordImage.src = `${STATIC_ASSETS}/images/words/${word}.jpg`;
+
+  wordImage.src = `${STATIC}/images/words/${word}.jpg`;
+  wordImage.style.display = "block";
 }
 
-// ---------------- TTS ----------------
+/* ---------- TTS ---------- */
+
 function playTTS() {
   const word = wordSelect.selectedOptions[0]?.text;
-  if (!word) return showError("Select a word");
-
-  const mode = paceMode.value;
-  const custom = Number(customPace.value);
+  if (!word) return;
 
   const u = new SpeechSynthesisUtterance(word);
-
-  if (mode === "slow") u.rate = 0.6;
-  if (mode === "medium") u.rate = 0.85;
-  if (mode === "fast") u.rate = 1.1;
-  if (mode === "custom") u.rate = custom / 100;
+  u.rate =
+    paceMode.value === "slow" ? 0.6 :
+    paceMode.value === "fast" ? 1.1 :
+    paceMode.value === "custom" ? customPace.value / 100 :
+    0.85;
 
   speechSynthesis.cancel();
   speechSynthesis.speak(u);
 }
 
-// ---------------- STT ----------------
+/* ---------- STT (Supportive) ---------- */
+
 function startSTT() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return showError("Speech recognition not supported");
+  clearUI();
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  const r = new SR();
-  r.lang = "en-US";
+  const rec = new SpeechRecognition();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
 
-  r.onresult = e => {
-    spokenText = e.results[0][0].transcript;
-    output.innerText = `🧠 You said: ${spokenText}`;
+  rec.onresult = e => {
+    const raw = e.results[0][0].transcript;
+    spokenText = normalizeSpoken(raw);
+    output.innerText = `🗣 You said: ${spokenText}`;
   };
 
-  r.start();
+  rec.start();
+
+  // Gentle auto-stop (not aggressive)
+  setTimeout(() => rec.stop(), 1800);
 }
 
-// ---------------- EVALUATE + LEARN ----------------
-async function evaluateAndLearn() {
-  clearMsg();
+/* ---------- Evaluation + Feedback ---------- */
 
-  if (!spokenText) return showError("Speak first");
+async function evaluatePronunciation() {
+  if (!spokenText) {
+    error.innerText = "Please speak the word first.";
+    return;
+  }
 
-  const wordId = Number(wordSelect.value);
-  const levelId = Number(levelSelect.value);
+  const expectedWord = wordSelect.selectedOptions[0].text;
 
-  // 1️⃣ Pure evaluation
-  const evalRes = await fetch(`${API_BASE}/practice/evaluate`, {
+  const res = await fetch(`${API}/practice/evaluate`, {
     method: "POST",
-    headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
-    body: JSON.stringify({ word_id: wordId, recognized_text: spokenText })
+    headers: { ...AUTH, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      word_id: Number(wordSelect.value),
+      recognized_text: spokenText
+    })
   });
 
-  const evalData = await evalRes.json();
+  const result = await res.json();
+
+  const payload = {
+    word: expectedWord,
+    spoken: spokenText,
+    similarity: result.score,
+    attempts: result.attempts || 1,
+    pace: paceMode.value
+  };
+
+  const [f, r, t, p] = await Promise.all([
+    fetch(API + "/feedback/generate", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()),
+
+    fetch(API + "/feedback/recommendation", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()),
+
+    fetch(API + "/feedback/trend", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()),
+
+    fetch(API + "/feedback/pattern", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+  ]);
 
   output.innerText =
-`📘 Expected: ${evalData.expected}
-🗣 Spoken: ${evalData.recognized}
-📊 Score: ${evalData.score}
-⚖ Verdict: ${evalData.verdict}`;
+`📘 Word: ${expectedWord}
+🗣 You said: ${spokenText}
+📊 Score: ${result.score}%
 
-  // 2️⃣ Learning DB update
-  const form = new FormData();
-  form.append("level_id", levelId);
-  form.append("word_id", wordId);
-  form.append("pace_mode", paceMode.value);
-  if (paceMode.value === "custom") {
-    form.append("pace_value", customPace.value);
-  }
-  form.append("spoken", spokenText);
-  form.append("file", new Blob([]), "dummy.wav");
-
-  const learnRes = await fetch(`${API_BASE}/learning/learn-auto`, {
-    method: "POST",
-    headers: AUTH_HEADER,
-    body: form
-  });
-
-  const learnData = await learnRes.json();
-
-  feedbackBox.innerText = "💬 FEEDBACK\n" + JSON.stringify(learnData.feedback, null, 2);
-  recommendationBox.innerText =
-    "🧭 RECOMMENDATION\n" + JSON.stringify(learnData.recommendation, null, 2);
+🧠 Feedback: ${f.message || f.feedback}
+➡️ Recommendation: ${r.message || r.recommendation}
+📈 Trend: ${t.trend || t.message}
+🔍 Pattern: ${p.pattern || p.message}`;
 }
 
-// ---------------- HELPERS ----------------
 function toggleCustomPace() {
   customPace.disabled = paceMode.value !== "custom";
-}
-
-function showError(msg) {
-  error.innerText = msg;
-}
-
-function clearMsg() {
-  error.innerText = "";
 }
 </script>
 
