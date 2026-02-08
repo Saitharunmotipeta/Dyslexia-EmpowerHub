@@ -4,13 +4,10 @@ from typing import List
 
 class MockWord(BaseModel):
     id: int
-    level_id: int
-    text: str
+    word: str   # ⚠️ FIX: backend returns "word", not "text"
 
 
 class MockStartResponse(BaseModel):
     attempt_id: int
-    level_id: int
     words: List[MockWord]
     message: str
-

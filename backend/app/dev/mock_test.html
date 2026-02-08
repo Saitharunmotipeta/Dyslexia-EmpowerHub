@@ -11,53 +11,100 @@
       padding: 30px;
     }
 
-    h1 {
+    h1, h2 {
       color: #333;
     }
 
     input, select, button {
-      padding: 10px;
-      margin: 6px 0;
+      padding: 12px;
+      margin: 8px 0;
       font-size: 16px;
       width: 100%;
     }
 
     button {
       cursor: pointer;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 6px;
+    }
+
+    button.secondary {
+      background: #eef2ff;
+      color: #3730a3;
     }
 
     .box {
       background: white;
-      padding: 20px;
-      border-radius: 8px;
+      padding: 24px;
+      border-radius: 10px;
       margin-top: 20px;
-    }
-
-    .row {
-      margin-top: 10px;
+      max-width: 700px;
     }
 
     img {
       max-width: 200px;
-      margin-top: 10px;
+      margin-top: 12px;
+      border-radius: 6px;
+      display: none;
     }
 
     .output {
-      margin-top: 10px;
-      font-weight: bold;
-      color: #2b6cb0;
+      margin-top: 12px;
+      padding: 12px;
+      background: #eef2ff;
+      border-radius: 6px;
+      white-space: pre-line;
     }
 
     .danger {
-      color: red;
+      color: #b91c1c;
+      font-weight: bold;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      background-color: #e0e0e0;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+
+    .progress-bar {
+      height: 20px;
+      width: 0%;
+      background-color: #4f46e5;
+      transition: width 1s linear;
     }
   </style>
 </head>
+
 <body>
 
-<h1>🎤 Dyslexia Mock Test (Browser-Driven)</h1>
+<h1>🎤 Dyslexia Mock Test</h1>
 
+<!-- INSTRUCTIONS -->
 <div class="box">
+  <h2>📋 Instructions</h2>
+  <p>Welcome to the Dyslexia Mock Test! Please follow the instructions below:</p>
+  <ul>
+    <li>Enter your <strong>JWT Token</strong> to authenticate yourself.</li>
+    <li>Select the <strong>Level ID</strong> to choose the difficulty level of the test.</li>
+    <li>Click on <strong>Start Mock Test</strong> to begin.</li>
+    <li>You will be given a series of words to pronounce. For each word:</li>
+    <ul>
+      <li>Click <strong>Hear Word</strong> to listen to the word.</li>
+      <li>Click <strong>Speak</strong> and pronounce the word clearly.</li>
+      <li>Click <strong>Submit</strong> to evaluate your pronunciation.</li>
+    </ul>
+    <li>You have a total time limit of <strong>10 minutes</strong> to complete the test.</li>
+    <li>Once the test is complete, you will see your final score and verdict.</li>
+  </ul>
+</div>
+
+<!-- START -->
+<div class="box" id="startBox">
   <label>🔑 JWT Token</label>
   <input id="tokenInput" placeholder="Paste JWT token here" />
 
@@ -65,245 +112,274 @@
   <input id="levelInput" type="number" value="1" />
 
   <button onclick="startMock()">🚀 Start Mock Test</button>
-
-  <div class="row output" id="timer"></div>
+  <div id="timer" class="output"></div>
+  <div class="progress-bar-container">
+    <div id="progressBar" class="progress-bar"></div>
+  </div>
+  <h1>Attempt ID: <span id="attemptId"></span></h1>
 </div>
 
+<!-- MOCK -->
 <div class="box" id="mockBox" style="display:none">
-  <h2 id="wordTitle">Word</h2>
-
+  <h2 id="wordTitle"></h2>
   <img id="wordImage" />
 
-  <div class="row">
-    <label>Pace</label>
-    <select id="paceSelect">
-      <option value="slow">Slow</option>
-      <option value="medium" selected>Medium</option>
-      <option value="fast">Fast</option>
-    </select>
-  </div>
+  <label>⏱ Pace</label>
+  <select id="paceSelect">
+    <option value="slow">Slow</option>
+    <option value="medium" selected>Medium</option>
+    <option value="fast">Fast</option>
+  </select>
 
-  <button onclick="playTTS()">🔊 Play TTS</button>
-  <button onclick="startSTT()">🎙️ Speak</button>
-  <button onclick="submitAttempt()">📤 Submit Attempt</button>
+  <button class="secondary" onclick="playTTS()">🔊 Hear Word</button>
+  <button onclick="startSTT()">🎙 Speak</button>
+  <button onclick="submitWord()">📤 Submit</button>
 
-  <div class="row output" id="recognizedText"></div>
-  <div class="row output" id="evaluationResult"></div>
-  <div class="row danger" id="attemptInfo"></div>
+  <div id="spokenOutput" class="output"></div>
+  <div id="evaluationOutput" class="output"></div>
 </div>
 
-<script>
-/* ===============================
-   CONFIG
-================================ */
-const API_BASE = "http://127.0.0.1:8000";
-const STATIC_BASE = "https://dyslexia-static-assets.onrender.com";
+<!-- RESULT -->
+<div class="box" id="resultBox" style="display:none">
+  <h2>📊 Mock Result</h2>
+  <div id="resultOutput" class="output"></div>
+  <button onclick="loadReport()">📄 View Report</button>
+</div>
 
-let token = "";
-let attemptId = null;
+<div id="reportPreview" class="output" style="margin-top:16px;"></div>
+
+<script>
+const API = "http://127.0.0.1:8000";
+const STATIC = "https://dyslexia-static-assets.onrender.com";
+
+let AUTH = {};
+let mockAttemptId = null;
 let words = [];
 let currentIndex = 0;
-let attemptsLeft = 3;
-let recognizedText = "";
-let mediaRecorder;
-let audioChunks = [];
+let spokenText = "";
 let timerInterval;
+let totalSeconds = 600; // 10 minutes
 
-/* ===============================
-   TIMER
-================================ */
-function startTimer(minutes = 10) {
-  let seconds = minutes * 60;
+/* ================= TIMER ================= */
+function startTimer() {
+  const progressBar = document.getElementById("progressBar");
   const el = document.getElementById("timer");
+  let seconds = totalSeconds;
 
   timerInterval = setInterval(() => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
     el.innerText = `⏱ Time left: ${m}:${s.toString().padStart(2, "0")}`;
-    seconds--;
 
+    // Update progress bar
+    const progress = ((totalSeconds - seconds) / totalSeconds) * 100;
+    progressBar.style.width = `${progress}%`;
+
+    seconds--;
     if (seconds < 0) {
       clearInterval(timerInterval);
-      alert("⏰ Time up! Mock ended.");
       finishMock();
     }
   }, 1000);
 }
 
-/* ===============================
-   START MOCK
-================================ */
+/* ================= START ================= */
 async function startMock() {
-  token = document.getElementById("tokenInput").value.trim();
-  const levelId = document.getElementById("levelInput").value;
+  const token = tokenInput.value.trim();
+  const levelId = levelInput.value;
 
   if (!token) {
     alert("Token required");
     return;
   }
 
-  console.log("🔑 Token set");
+  AUTH = { Authorization: "Bearer " + token };
 
-  // Start attempt
-  const res = await fetch(`${API_BASE}/mock/start?level_id=${levelId}`, {
-    headers: { Authorization: `Bearer ${token}` }
+  // ✅ CALL THE CORRECT ENDPOINT
+  const res = await fetch(`${API}/mock/start?level_id=${levelId}`, {
+    method: "POST",
+    headers: {
+      Authorization: AUTH.Authorization
+    }
   });
+
+  if (!res.ok) {
+    alert("Failed to start mock");
+    return;
+  }
 
   const data = await res.json();
-  attemptId = data.attempt_id;
 
-  console.log("🧪 Attempt ID:", attemptId);
+  // ✅ STORE SESSION DATA
+  mockAttemptId = data.attempt_id;
+  words = data.words;
+  currentIndex = 0;
 
-  // Fetch mock words
-  const wres = await fetch(`${API_BASE}/mock/words/${levelId}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  // ✅ DISPLAY ATTEMPT ID
+  document.getElementById("attemptId").innerText = mockAttemptId;
+  document.getElementById("timer").innerText =
+    `🆔 Mock Attempt ID: ${mockAttemptId}`;
 
-  words = await wres.json();
-  console.log("📚 Mock words:", words);
-
-  document.getElementById("mockBox").style.display = "block";
+  // ✅ UI TRANSITION
+  startBox.style.display = "none";
+  mockBox.style.display = "block";
 
   startTimer();
-  loadWord();
+  loadWord(); // word is handled HERE, safely
 }
 
-/* ===============================
-   LOAD WORD
-================================ */
+/* ================= LOAD WORD ================= */
 function loadWord() {
   if (currentIndex >= words.length) {
     finishMock();
     return;
   }
 
-  attemptsLeft = 3;
-  recognizedText = "";
-  document.getElementById("evaluationResult").innerText = "";
-  document.getElementById("recognizedText").innerText = "";
+  spokenText = "";
+  evaluationOutput.innerText = "";
+  spokenOutput.innerText = "";
 
   const word = words[currentIndex];
-  document.getElementById("wordTitle").innerText = `📝 Word: ${word.word}`;
-
-  document.getElementById("wordImage").src =
-    `${STATIC_BASE}/images/words/${word.word}.jpg`;
-
-  updateAttemptInfo();
+  wordTitle.innerText = `📝 Word ${currentIndex + 1}: ${word.word}`;
+  wordImage.src = `${STATIC}/images/words/${word.word}.jpg`;
+  wordImage.style.display = "block";
 }
 
-function updateAttemptInfo() {
-  document.getElementById("attemptInfo").innerText =
-    `Attempts left: ${attemptsLeft}`;
-}
-
-/* ===============================
-   TTS
-================================ */
+/* ================= TTS ================= */
 function playTTS() {
   const word = words[currentIndex].word;
-  const pace = document.getElementById("paceSelect").value;
+  const pace = paceSelect.value;
 
-  const audioUrl =
-    `${STATIC_BASE}/tts/en/${pace}/${word}.wav`;
-
-  const audio = new Audio(audioUrl);
-  audio.onerror = () => {
-    console.warn("⚠️ Static TTS missing, fallback to browser");
-    browserTTS(word, pace);
-  };
-  audio.play();
-}
-
-function browserTTS(text, pace) {
-  const u = new SpeechSynthesisUtterance(text);
+  const u = new SpeechSynthesisUtterance(word);
   u.rate = pace === "slow" ? 0.6 : pace === "fast" ? 1.1 : 0.85;
   speechSynthesis.cancel();
   speechSynthesis.speak(u);
 }
 
-/* ===============================
-   STT + RECORD
-================================ */
+/* ================= STT ================= */
 function startSTT() {
-  if (attemptsLeft <= 0) {
-    alert("No attempts left");
-    return;
-  }
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  attemptsLeft--;
-  updateAttemptInfo();
+  const rec = new SpeechRecognition();
+  rec.lang = "en-US";
+  rec.interimResults = false;
 
-  audioChunks = [];
+  rec.onresult = e => {
+    spokenText = e.results[0][0].transcript
+      .toLowerCase()
+      .replace(/[^a-z ]/g, "")
+      .split(" ")[0];
 
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    mediaRecorder = new MediaRecorder(stream);
-    mediaRecorder.start();
+    spokenOutput.innerText = `🗣 You said: ${spokenText}`;
+  };
 
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    const rec = new SpeechRecognition();
-    rec.lang = "en-US";
-
-    rec.onresult = e => {
-      recognizedText = e.results[0][0].transcript;
-      document.getElementById("recognizedText").innerText =
-        "🧠 You said: " + recognizedText;
-    };
-
-    rec.start();
-
-    setTimeout(() => {
-      mediaRecorder.stop();
-      rec.stop();
-    }, 3000);
-
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-  });
+  rec.start();
+  setTimeout(() => rec.stop(), 1800);
 }
 
-/* ===============================
-   SUBMIT ATTEMPT
-================================ */
-async function submitAttempt() {
-  if (!recognizedText) {
-    alert("Speak first");
-    return;
-  }
+/* ================= SUBMIT WORD ================= */
+async function submitWord() {
+  if (!spokenText) return alert("Speak first");
 
   const word = words[currentIndex];
 
-  const blob = new Blob(audioChunks, { type: "audio/webm" });
-  const form = new FormData();
-  form.append("audio", blob, "audio.webm");
+  const res = await fetch(`${API}/mock/word`, {
+      method: "POST",
+      headers: {
+        Authorization: AUTH.Authorization,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        attempt_id: mockAttemptId,
+        word_id: word.id,
+        spoken: spokenText
+      })
+    });
 
+  const data = await res.json();
+
+  evaluationOutput.innerText =
+`📊 Score: ${data.score}
+⚖ Verdict: ${data.verdict}
+💬 ${data.message}`;
+
+  currentIndex++;
+  setTimeout(loadWord, 1800);
+}
+
+/* ================= FINISH ================= */
+async function finishMock() {
+  clearInterval(timerInterval);
+  mockBox.style.display = "none";
+  resultBox.style.display = "block";
+
+  const res = await fetch(`${API}/mock/result`, {
+    method: "POST",
+    headers: {
+      Authorization: AUTH.Authorization,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ attempt_id: mockAttemptId })
+  });
+
+
+
+  const data = await res.json();
+
+  resultOutput.innerText =
+`🏁 Final Score: ${data.score}
+📌 Verdict: ${data.verdict}
+💡 ${data.message}`;
+}
+
+/* ================= REPORT ================= */
+// function loadReport() {
+//   window.open(
+//     `${API}/mock/report?attempt_id=${mockAttemptId}&token=${tokenInput.value}`,
+//     "_blank"
+//   );
+// }
+async function loadReport() {
   const res = await fetch(
-    `${API_BASE}/mock/submit?attempt_id=${attemptId}&word_id=${word.id}`,
+    `${API}/mock/report?attempt_id=${mockAttemptId}`,
     {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form
+      headers: {
+        Authorization: AUTH.Authorization
+      }
     }
   );
 
+  if (!res.ok) {
+    alert("Failed to load report preview");
+    return;
+  }
+
   const data = await res.json();
-  console.log("📊 Evaluation:", data);
 
-  document.getElementById("evaluationResult").innerText =
-    `Score: ${data.score} | Verdict: ${data.verdict}`;
+  let preview = `📄 MOCK REPORT PREVIEW
+-------------------------
+Final Score: ${data.final_score}
+Verdict: ${data.verdict}
 
-  currentIndex++;
-  setTimeout(loadWord, 2000);
+`;
+
+  data.words.forEach((w, i) => {
+    preview += `${i + 1}. Word: ${w.expected}
+   Spoken: ${w.spoken}
+   Score: ${w.score}
+   Verdict: ${w.verdict}
+   Feedback: ${w.feedback}
+
+`;
+  });
+
+  preview += "📨 PDF generated and ready for email delivery.";
+
+  document.getElementById("reportPreview").innerText = preview;
 }
 
-/* ===============================
-   FINISH
-================================ */
-function finishMock() {
-  clearInterval(timerInterval);
-  alert("✅ Mock test completed");
-  console.log("🏁 Mock finished");
-}
 </script>
 
 </body>

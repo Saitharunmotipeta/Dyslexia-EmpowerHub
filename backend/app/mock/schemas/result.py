@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import List, Dict
 
+class MockResultRequest(BaseModel):
+    attempt_id: int
 
 class MockResultResponse(BaseModel):
     attempt_id: int
