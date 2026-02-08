@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "Dyslexia-EmpowerHub Docs": {
+      "type": "sse",
+      "url": "https://gitmcp.io/Saitharunmotipeta/Dyslexia-EmpowerHub"
+    }
+  }
+}
