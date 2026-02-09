@@ -365,12 +365,12 @@ Verdict: ${data.verdict}
 
 `;
 
-  data.words.forEach((w, i) => {
-    preview += `${i + 1}. Word: ${w.expected}
-   Spoken: ${w.spoken}
-   Score: ${w.score}
-   Verdict: ${w.verdict}
-   Feedback: ${w.feedback}
+  (data.words || []).forEach((w, i) => {
+    preview += `${i + 1}. Word: ${w.expected || "-"}
+   Spoken: ${w.spoken || "-"}
+   Score: ${w.score ?? "-"}
+   Verdict: ${w.verdict || "-"}
+   Feedback: ${w.feedback || "-"}
 
 `;
   });

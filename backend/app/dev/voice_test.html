@@ -256,6 +256,7 @@ async function evaluatePronunciation() {
 
   const expectedWord = wordSelect.selectedOptions[0].text;
 
+  // 1️⃣ Practice evaluation (DB update happens here)
   const res = await fetch(`${API}/practice/evaluate`, {
     method: "POST",
     headers: { ...AUTH, "Content-Type": "application/json" },
@@ -267,6 +268,7 @@ async function evaluatePronunciation() {
 
   const result = await res.json();
 
+  // 2️⃣ Build unified payload (same as before)
   const payload = {
     word: expectedWord,
     spoken: spokenText,
@@ -275,39 +277,32 @@ async function evaluatePronunciation() {
     pace: paceMode.value
   };
 
-  const [f, r, t, p] = await Promise.all([
-    fetch(API + "/feedback/generate", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()),
+  // 3️⃣ SINGLE insights call
+  const insightsRes = await fetch(`${API}/feedback/aggregate`, {
+    method: "POST",
+    headers: { ...AUTH, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
 
-    fetch(API + "/feedback/recommendation", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()),
+  if (!insightsRes.ok) {
+    error.innerText = "Failed to generate insights.";
+    return;
+  }
 
-    fetch(API + "/feedback/trend", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()),
+  const insights = await insightsRes.json();
 
-    fetch(API + "/feedback/pattern", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json())
-  ]);
-
+  // 4️⃣ Render output
   output.innerText =
 `📘 Word: ${expectedWord}
 🗣 You said: ${spokenText}
 📊 Score: ${result.score}%
 
-🧠 Feedback: ${f.message || f.feedback}
-➡️ Recommendation: ${r.message || r.recommendation}
-📈 Trend: ${t.trend || t.message}
-🔍 Pattern: ${p.pattern || p.message}`;
+🧠 Feedback: ${insights.feedback?.message || insights.feedback}
+➡️ Recommendation: ${insights.recommendation?.decision || insights.recommendation}
+📈 Trend: ${insights.trend?.direction || insights.trend}
+🔍 Pattern: ${JSON.stringify(insights.patterns || insights.pattern)}
+`;
 }
-
 function toggleCustomPace() {
   customPace.disabled = paceMode.value !== "custom";
 }
