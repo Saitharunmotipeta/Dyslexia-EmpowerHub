@@ -29,13 +29,14 @@
       margin-top: 18px;
       display: block;
       font-weight: 600;
+      font-size: 16px;
     }
 
     input, select, button {
       width: 100%;
       margin-top: 6px;
       padding: 12px;
-      font-size: 15px;
+      font-size: 16px;
       border-radius: 8px;
       border: 1px solid #d1d5db;
     }
@@ -68,13 +69,13 @@
       background: #f1f5f9;
       border-radius: 10px;
       white-space: pre-line;
-      font-size: 14px;
-      line-height: 1.6;
+      font-size: 15px;
+      line-height: 1.7;
     }
 
     .hint {
       margin-top: 10px;
-      font-size: 13px;
+      font-size: 14px;
       color: #6b7280;
     }
 
@@ -117,7 +118,10 @@
 
   <button class="secondary" onclick="playTTS()">🔊 Hear the word</button>
   <button onclick="startSTT()">🎙 Speak the word</button>
-  <div class="hint">Say the word slowly. It’s okay if it’s not perfect.</div>
+  <div class="hint">
+    Say the word slowly and stretch the sound.<br>
+    Example: <b>cat → caaaat</b>, <b>book → boooook</b>
+  </div>
 
   <button onclick="evaluatePronunciation()">🧪 Check Pronunciation</button>
 
@@ -132,20 +136,20 @@ const STATIC = "https://dyslexia-static-assets.onrender.com";
 
 let AUTH = {};
 let spokenText = "";
-let evaluationResult = null;
 
 /* ---------- Helpers ---------- */
 
 function normalizeSpoken(text) {
-  text = text.toLowerCase().replace(/[^a-z ]/g, "").trim();
+  if (!text) return "";
 
-  // merge spelled letters: "c a t" → "cat"
-  const parts = text.split(" ");
+  text = text.toLowerCase().replace(/[^a-z\s]/g, "").trim();
+  const parts = text.split(/\s+/);
+
+  // letter-by-letter: "c a t" → "cat"
   if (parts.length > 1 && parts.every(p => p.length === 1)) {
     return parts.join("");
   }
 
-  // take the first meaningful word
   return parts[0] || "";
 }
 
@@ -222,28 +226,50 @@ function playTTS() {
   speechSynthesis.speak(u);
 }
 
-/* ---------- STT (Supportive) ---------- */
+/* ---------- STT (IMPROVED, DYSLEXIA-FIRST) ---------- */
 
 function startSTT() {
   clearUI();
+
   const SpeechRecognition =
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
+  if (!SpeechRecognition) {
+    error.innerText = "Speech recognition not supported in this browser.";
+    return;
+  }
+
+  const expectedWord = wordSelect.selectedOptions[0]?.text || "";
+  const isShortWord = expectedWord.length <= 4;
+  const listenTime = isShortWord ? 3500 : 2500;
+
   const rec = new SpeechRecognition();
   rec.lang = "en-US";
+  rec.continuous = false;
   rec.interimResults = false;
-  rec.maxAlternatives = 1;
+  rec.maxAlternatives = 3;
+
+  output.innerText = "🎤 Listening… take your time.";
 
   rec.onresult = e => {
     const raw = e.results[0][0].transcript;
-    spokenText = normalizeSpoken(raw);
-    output.innerText = `🗣 You said: ${spokenText}`;
+    const word = normalizeSpoken(raw);
+
+    if (!word) {
+      output.innerText = "That’s okay — try again 🌱";
+      return;
+    }
+
+    spokenText = word;
+    output.innerText = `👂 I heard: "${spokenText}"`;
+  };
+
+  rec.onerror = () => {
+    output.innerText = "No rush — try again when ready 🌱";
   };
 
   rec.start();
-
-  // Gentle auto-stop (not aggressive)
-  setTimeout(() => rec.stop(), 1800);
+  setTimeout(() => rec.stop(), listenTime);
 }
 
 /* ---------- Evaluation + Feedback ---------- */
@@ -256,7 +282,6 @@ async function evaluatePronunciation() {
 
   const expectedWord = wordSelect.selectedOptions[0].text;
 
-  // 1️⃣ Practice evaluation (DB update happens here)
   const res = await fetch(`${API}/practice/evaluate`, {
     method: "POST",
     headers: { ...AUTH, "Content-Type": "application/json" },
@@ -268,7 +293,6 @@ async function evaluatePronunciation() {
 
   const result = await res.json();
 
-  // 2️⃣ Build unified payload (same as before)
   const payload = {
     word: expectedWord,
     spoken: spokenText,
@@ -277,32 +301,39 @@ async function evaluatePronunciation() {
     pace: paceMode.value
   };
 
-  // 3️⃣ SINGLE insights call
-  const insightsRes = await fetch(`${API}/feedback/aggregate`, {
-    method: "POST",
-    headers: { ...AUTH, "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
+  const [f, r, t, p] = await Promise.all([
+    fetch(API + "/feedback/generate", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()),
 
-  if (!insightsRes.ok) {
-    error.innerText = "Failed to generate insights.";
-    return;
-  }
+    fetch(API + "/feedback/recommendation", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()),
 
-  const insights = await insightsRes.json();
+    fetch(API + "/feedback/trend", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()),
 
-  // 4️⃣ Render output
+    fetch(API + "/feedback/pattern", {
+      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(r => r.json())
+  ]);
+
   output.innerText =
 `📘 Word: ${expectedWord}
 🗣 You said: ${spokenText}
 📊 Score: ${result.score}%
 
-🧠 Feedback: ${insights.feedback?.message || insights.feedback}
-➡️ Recommendation: ${insights.recommendation?.decision || insights.recommendation}
-📈 Trend: ${insights.trend?.direction || insights.trend}
-🔍 Pattern: ${JSON.stringify(insights.patterns || insights.pattern)}
-`;
+🧠 Feedback: ${f.message || f.feedback}
+➡️ Recommendation: ${r.message || r.recommendation}
+📈 Trend: ${t.trend || t.message}
+🔍 Pattern: ${p.pattern || p.message}`;
 }
+
 function toggleCustomPace() {
   customPace.disabled = paceMode.value !== "custom";
 }
