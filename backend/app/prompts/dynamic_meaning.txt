@@ -1,0 +1,5 @@
+Explain the meaning or purpose for a dyslexic learner.
+Do not rewrite or speak as the person.
+No conversation. No quotes.
+Max 2 short sentences.
+Text: {{TEXT}}
