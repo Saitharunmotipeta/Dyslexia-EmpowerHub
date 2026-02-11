@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dynamic Learning • Dyslexia EmpowerHub</title>
+
+<style>
+body {
+    font-family: "Segoe UI", sans-serif;
+    background: #f2f5f9;
+    margin: 0;
+    padding: 40px;
+    color: #2b2b2b;
+}
+
+.container {
+    max-width: 820px;
+    margin: auto;
+    background: white;
+    padding: 35px;
+    border-radius: 18px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+}
+
+h1 { text-align: center; margin-bottom: 5px; }
+.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+
+.section { margin-bottom: 30px; }
+
+label { font-weight: 600; display: block; margin-bottom: 6px; }
+
+input[type="text"], textarea, select {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-bottom: 10px;
+}
+
+textarea { resize: none; font-size: 18px; }
+
+button {
+    padding: 10px 16px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    margin-right: 8px;
+    margin-top: 8px;
+}
+
+.primary { background: #2563eb; color: white; }
+.secondary { background: #e5e7eb; }
+.success { background: #16a34a; color: white; }
+
+.status { margin-top: 8px; font-weight: 600; }
+
+.output {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 10px;
+    line-height: 1.6;
+}
+
+.score { margin-top: 15px; font-weight: 600; }
+
+.instructions {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.slider-container {
+    margin-top: 10px;
+    display: none;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>📘 Dynamic Learning Module</h1>
+<div class="subtitle">
+Explore any word or sentence. Listen. Understand. Practice.
+</div>
+
+<!-- AUTH -->
+<div class="section">
+<label>🔐 JWT Token</label>
+<input type="text" id="tokenInput" placeholder="Paste your JWT token here..." />
+<button class="primary" onclick="connectBackend()">Connect Backend</button>
+<div class="status" id="connectionStatus">Status: Not Connected</div>
+</div>
+
+<!-- INPUT -->
+<div class="section">
+<label>✍️ Enter a Word or Sentence</label>
+<div class="instructions">
+Type something you want to understand. Then adjust the listening pace if needed.
+</div>
+
+<textarea id="inputText" rows="3" placeholder="Example: Good morning"></textarea>
+
+<!-- Pace Control -->
+<label>🎚 Listening Pace</label>
+<select id="paceMode" onchange="updatePaceMode()">
+    <option value="slow">Slow</option>
+    <option value="medium" selected>Medium</option>
+    <option value="fast">Fast</option>
+    <option value="custom">Custom</option>
+</select>
+
+<div class="slider-container" id="customPaceContainer">
+    <input type="range" id="customPace" min="0.5" max="1.5" step="0.05" value="0.9"
+           oninput="updateCustomPaceValue()" />
+    <div id="paceValue">Rate: 0.9</div>
+</div>
+
+<button class="primary" onclick="analyzeText()">Analyze Meaning</button>
+<button class="secondary" onclick="speakOriginal()">🔊 Listen to Text</button>
+<button class="secondary" onclick="speakMeaning()">🔊 Listen to Meaning</button>
+<button class="success" onclick="startPractice()">🎤 Practice Speaking</button>
+</div>
+
+<!-- OUTPUT -->
+<div class="section">
+<div class="output" id="result"></div>
+<div class="score" id="score"></div>
+</div>
+
+</div>
+
+<script>
+
+const API = "http://127.0.0.1:8000";
+let AUTH = {};
+let isConnected = false;
+let currentText = "";
+let currentMeaning = "";
+const dynamicCache = {};
+
+// ----------------------------
+// Pace Control
+// ----------------------------
+function getSpeechRate() {
+    const mode = document.getElementById("paceMode").value;
+
+    if (mode === "slow") return 0.75;
+    if (mode === "medium") return 0.9;
+    if (mode === "fast") return 1.1;
+    if (mode === "custom") {
+        return parseFloat(document.getElementById("customPace").value);
+    }
+}
+
+function updatePaceMode() {
+    const mode = document.getElementById("paceMode").value;
+    const container = document.getElementById("customPaceContainer");
+    container.style.display = mode === "custom" ? "block" : "none";
+}
+
+function updateCustomPaceValue() {
+    const val = document.getElementById("customPace").value;
+    document.getElementById("paceValue").innerText = `Rate: ${val}`;
+}
+
+// ----------------------------
+// Connect
+// ----------------------------
+function connectBackend() {
+    const token = document.getElementById("tokenInput").value.trim();
+    if (!token) return alert("Enter a valid JWT token.");
+
+    AUTH = { Authorization: "Bearer " + token };
+    isConnected = true;
+    document.getElementById("connectionStatus").innerText =
+        "Status: ✅ Connected";
+}
+
+// ----------------------------
+// Analyze
+// ----------------------------
+function normalize(text) {
+    return text.toLowerCase().trim();
+}
+
+async function analyzeText() {
+    if (!isConnected) return alert("Connect backend first.");
+
+    const text = document.getElementById("inputText").value.trim();
+    if (!text) return;
+
+    const key = normalize(text);
+    currentText = text;
+
+    if (dynamicCache[key]) {
+        displayResult(dynamicCache[key]);
+        return;
+    }
+
+    const res = await fetch(`${API}/dynamic/analyze`, {
+        method: "POST",
+        headers: { ...AUTH, "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+    });
+
+    const data = await res.json();
+    dynamicCache[key] = data;
+    displayResult(data);
+}
+
+function displayResult(data) {
+    currentMeaning = data.meaning;
+
+    document.getElementById("result").innerHTML =
+        `<strong>Type:</strong> ${data.type}<br/><br/>
+         <strong>Meaning:</strong><br/>${data.meaning}`;
+
+    document.getElementById("score").innerText = "";
+}
+
+// ----------------------------
+// TTS
+// ----------------------------
+function speakOriginal() {
+    if (!currentText) return;
+
+    const utter = new SpeechSynthesisUtterance(currentText);
+    utter.rate = getSpeechRate();
+    speechSynthesis.speak(utter);
+}
+
+function speakMeaning() {
+    if (!currentMeaning) return;
+
+    const utter = new SpeechSynthesisUtterance(currentMeaning);
+    utter.rate = getSpeechRate();
+    speechSynthesis.speak(utter);
+}
+
+// ----------------------------
+// STT Practice
+// ----------------------------
+function startPractice() {
+    if (!currentText) return;
+
+    const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = function (event) {
+        const spoken = normalize(event.results[0][0].transcript);
+        evaluatePractice(spoken);
+    };
+
+    recognition.start();
+}
+
+function evaluatePractice(spoken) {
+    const expected = normalize(currentText);
+
+    let score = similarity(expected, spoken);
+    score = Math.round(score * 100);
+
+    document.getElementById("score").innerText =
+        `🗣 You said: ${spoken} | 🎯 Match: ${score}%`;
+}
+
+function similarity(a, b) {
+    if (!a.length || !b.length) return 0;
+
+    let matches = 0;
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        if (a[i] === b[i]) matches++;
+    }
+    return matches / Math.max(a.length, b.length);
+}
+
+</script>
+
+</body>
+</html>
