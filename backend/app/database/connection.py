@@ -14,7 +14,7 @@ if not DATABASE_URL:
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True,   # avoids stale connections
+    pool_pre_ping=True,
 )
 
 SessionLocal = sessionmaker(
@@ -32,3 +32,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# 🔥 IMPORTANT: Register all models
+from app.auth.models import User
+from app.dynamic.models.dynamic_attempt import DynamicAttempt

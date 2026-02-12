@@ -141,7 +141,6 @@ Type something you want to understand. Then adjust the listening pace if needed.
 const API = "http://127.0.0.1:8000";
 let AUTH = {};
 let isConnected = false;
-let currentText = "";
 let currentMeaning = "";
 const dynamicCache = {};
 
@@ -161,8 +160,8 @@ function getSpeechRate() {
 
 function updatePaceMode() {
     const mode = document.getElementById("paceMode").value;
-    const container = document.getElementById("customPaceContainer");
-    container.style.display = mode === "custom" ? "block" : "none";
+    document.getElementById("customPaceContainer").style.display =
+        mode === "custom" ? "block" : "none";
 }
 
 function updateCustomPaceValue() {
@@ -179,25 +178,32 @@ function connectBackend() {
 
     AUTH = { Authorization: "Bearer " + token };
     isConnected = true;
+
     document.getElementById("connectionStatus").innerText =
         "Status: ✅ Connected";
 }
 
 // ----------------------------
-// Analyze
+// Helpers
 // ----------------------------
 function normalize(text) {
     return text.toLowerCase().trim();
 }
 
+function getCurrentText() {
+    return document.getElementById("inputText").value.trim();
+}
+
+// ----------------------------
+// Analyze (AI Meaning Only)
+// ----------------------------
 async function analyzeText() {
     if (!isConnected) return alert("Connect backend first.");
 
-    const text = document.getElementById("inputText").value.trim();
+    const text = getCurrentText();
     if (!text) return;
 
     const key = normalize(text);
-    currentText = text;
 
     if (dynamicCache[key]) {
         displayResult(dynamicCache[key]);
@@ -226,12 +232,13 @@ function displayResult(data) {
 }
 
 // ----------------------------
-// TTS
+// TTS (Independent)
 // ----------------------------
 function speakOriginal() {
-    if (!currentText) return;
+    const text = getCurrentText();
+    if (!text) return;
 
-    const utter = new SpeechSynthesisUtterance(currentText);
+    const utter = new SpeechSynthesisUtterance(text);
     utter.rate = getSpeechRate();
     speechSynthesis.speak(utter);
 }
@@ -245,10 +252,11 @@ function speakMeaning() {
 }
 
 // ----------------------------
-// STT Practice
+// STT Practice (Independent)
 // ----------------------------
 function startPractice() {
-    if (!currentText) return;
+    const expected = getCurrentText();
+    if (!expected) return;
 
     const SpeechRecognition =
         window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -266,24 +274,65 @@ function startPractice() {
     recognition.start();
 }
 
+// ----------------------------
+// Word-Based Similarity
+// ----------------------------
 function evaluatePractice(spoken) {
-    const expected = normalize(currentText);
+    const expected = normalize(getCurrentText());
 
-    let score = similarity(expected, spoken);
-    score = Math.round(score * 100);
+    const expectedWords = expected.split(" ");
+    const spokenWords = spoken.split(" ");
 
-    document.getElementById("score").innerText =
-        `🗣 You said: ${spoken} | 🎯 Match: ${score}%`;
+    const correct = expectedWords.filter(w => spokenWords.includes(w));
+    const missing = expectedWords.filter(w => !spokenWords.includes(w));
+    const extra = spokenWords.filter(w => !expectedWords.includes(w));
+
+    const score = Math.round((correct.length / expectedWords.length) * 100);
+
+    renderComparison(correct, missing, extra, score);
+
+    saveAttempt(expected, spoken, score);
 }
 
-function similarity(a, b) {
-    if (!a.length || !b.length) return 0;
+function renderComparison(correct, missing, extra, score) {
+    let html = "<strong>Comparison:</strong><br/><br/>";
 
-    let matches = 0;
-    for (let i = 0; i < Math.min(a.length, b.length); i++) {
-        if (a[i] === b[i]) matches++;
-    }
-    return matches / Math.max(a.length, b.length);
+    correct.forEach(w => {
+        html += `<span style="color:green;">${w}</span> `;
+    });
+
+    missing.forEach(w => {
+        html += `<span style="color:red;">${w} (missing)</span> `;
+    });
+
+    extra.forEach(w => {
+        html += `<span style="color:red;">${w} (extra)</span> `;
+    });
+
+    document.getElementById("score").innerHTML =
+        `🎯 Match Score: ${score}%<br/><br/>${html}`;
+}
+
+// ----------------------------
+// Save Attempt to Backend
+// ----------------------------
+async function saveAttempt(text, spoken, score) {
+    if (!isConnected) return;
+
+    const textType = text.includes(" ") ? "sentence" : "word";
+    const pace = getSpeechRate();
+
+    await fetch(`${API}/dynamic/attempt`, {
+        method: "POST",
+        headers: { ...AUTH, "Content-Type": "application/json" },
+        body: JSON.stringify({
+            text,
+            text_type: textType,
+            spoken,
+            score,
+            pace
+        })
+    });
 }
 
 </script>

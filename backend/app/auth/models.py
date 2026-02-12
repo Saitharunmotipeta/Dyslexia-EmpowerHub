@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime
+from sqlalchemy.orm import relationship
 from app.database.connection import Base
 
 
@@ -28,3 +29,10 @@ class User(Base):
 
     total_time_spent = Column(Integer, default=0)
     courses_completed = Column(Integer, default=0)
+
+    dynamic_attempts = relationship(
+    "DynamicAttempt",
+    back_populates="user",
+    cascade="all, delete-orphan"
+)
+

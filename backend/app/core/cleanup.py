@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from app.core.paths import AUDIO_UPLOAD_DIR, AUDIO_WAV_DIR
 
 # Load env vars
-load_dotenv()
+load_dotenv()  # 👈 moved to main.py for better control over load order
 
 # =========================
 # CONFIG

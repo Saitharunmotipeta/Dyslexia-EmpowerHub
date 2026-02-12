@@ -51,7 +51,7 @@ def generate_meaning(text: str, text_type: str) -> str:
 
     # 🔒 COST GUARD 1 — skip AI for single words
     if text_type == "word":
-        return f"This word talks about '{text}'."
+        return f"'{text}' is a word. Read it slowly and say it clearly."
 
     # 🔒 FEATURE FLAG — AI OFF
     if not AI_MEANING_ENABLED:

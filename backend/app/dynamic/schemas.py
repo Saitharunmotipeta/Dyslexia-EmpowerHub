@@ -10,3 +10,15 @@ class DynamicAnalyzeOut(BaseModel):
     type: Literal["word", "sentence"]
     words: List[str]
     meaning: str
+
+class DynamicAttemptCreate(BaseModel):
+    text: str
+    text_type: Literal["word", "sentence"]
+    spoken: str
+    score: float
+    pace: float | None = None
+
+
+class DynamicAttemptOut(BaseModel):
+    attempt_id: int
+    message: str
