@@ -12,7 +12,7 @@ from app.insights.routes.recommendations import recommendation_endpoint
 from app.insights.routes.aggregate import aggregate_feedback_handler
 
 
-router = APIRouter(prefix="/feedback", tags=["Feedback"])
+router = APIRouter(prefix="/feedback", tags=["Insights"])
 
 
 @router.post("/trend")
