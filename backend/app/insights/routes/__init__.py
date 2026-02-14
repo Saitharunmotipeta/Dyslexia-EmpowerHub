@@ -47,10 +47,31 @@ def analyze_pattern(data: FeedbackIn, user_id: int = Depends(get_current_user_id
 
 @router.post("/generate")
 def generate_feedback(data: FeedbackIn, user_id: int = Depends(get_current_user_id)):
+    
+    """
+    Generates a feedback message based on the user's feedback metrics.
+
+    Args:
+        data (FeedbackIn): Contains user's feedback metrics.
+        user_id (int): User's ID.
+
+    Returns:
+        dict: Containing generated feedback message.
+    """
     return generate_feedback_handler(data,user_id)
 
 @router.post("/recommendation")
 def recommendation(data: FeedbackIn, user_id: int = Depends(get_current_user_id)):
+    """
+    Returns a recommendation for the user based on their feedback metrics.
+
+    Args:
+        data (FeedbackIn): Contains user's feedback metrics.
+        user_id (int): User's ID.
+
+    Returns:
+        dict: Containing recommendation result.
+    """
     return recommendation_endpoint(data,user_id)
 
 @router.post("/aggregate")

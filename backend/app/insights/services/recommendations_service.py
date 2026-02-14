@@ -4,32 +4,35 @@ from app.insights.schemas import FeedbackIn, RecommendationOut
 
 
 def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
-    score = data.similarity
+    score = data.score
     attempts = data.attempts
-    pace = data.pace or "medium"
+    pace = data.pace or 0.9
+    content_type = data.content_type
 
-    print("🔍 Recommending next step for word=", data.word, "and spoken=", data.spoken)
+    print("🔍 Recommending next step for text=", data.text, "spoken=", data.spoken)
+
     metrics = {
         "score": score,
         "attempts": attempts,
         "pace": pace,
-        "word": data.word,
-        "spoken": data.spoken
+        "text": data.text,
+        "spoken": data.spoken,
+        "content_type": content_type
     }
 
     # =========================
-    #  🎯 CASE 1 — Strong mastery
+    # 🎯 CASE 1 — Strong mastery
     # =========================
     if score >= 85:
         rec = RecommendationOut(
             recommendation="advance_level",
-            headline="Great job! You're ready for the next level 🎯",
-            explanation="Your accuracy and consistency show strong mastery.",
+            headline="Great progress — you're ready to move forward 🎯",
+            explanation="Your pronunciation shows strong control and clarity.",
             confidence=0.92,
             next_steps=[
-                "Continue to the next level",
-                "Use the word in daily conversation",
-                "Return later to refresh"
+                "Try a harder word or sentence",
+                "Use it in conversation",
+                "Return later to reinforce it"
             ],
             metrics_used=metrics
         )
@@ -38,56 +41,76 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
         return rec
 
     # =========================
-    # ✨ CASE 2 — Good but not perfect
+    # ✨ CASE 2 — Good but needs polish
     # =========================
     if score >= 70:
         rec = RecommendationOut(
-            recommendation="repeat_with_slow_pace",
-            headline="Almost there — let's polish pronunciation ✨",
-            explanation="Repeating slowly helps strengthen clarity.",
+            recommendation="slow_repeat",
+            headline="Almost there — slow it down slightly ✨",
+            explanation="Repeating slowly improves sound clarity.",
             confidence=0.82,
             next_steps=[
-                "Play TTS in slow mode",
+                "Replay TTS in slow mode",
                 "Repeat syllable-by-syllable",
-                "Practice 2–3 times"
+                "Record again calmly"
             ],
             metrics_used=metrics
         )
 
-        _log_metrics_and_result("repeat_with_slow_pace", metrics, rec)
+        _log_metrics_and_result("slow_repeat", metrics, rec)
         return rec
 
     # =========================
-    # 🧩 CASE 3 — Many attempts
+    # 🧩 CASE 3 — Sentence difficulty
+    # =========================
+    if content_type in ["phrase", "sentence"] and score < 60:
+        rec = RecommendationOut(
+            recommendation="segment_practice",
+            headline="Break the sentence into smaller parts 🧩",
+            explanation="Practicing one word at a time helps fluency.",
+            confidence=0.88,
+            next_steps=[
+                "Say one word at a time",
+                "Combine two words slowly",
+                "Speak full sentence again"
+            ],
+            metrics_used=metrics
+        )
+
+        _log_metrics_and_result("segment_practice", metrics, rec)
+        return rec
+
+    # =========================
+    # 🔁 CASE 4 — Many attempts
     # =========================
     if attempts >= 4:
         rec = RecommendationOut(
-            recommendation="breakdown_training",
-            headline="Let’s simplify this word step-by-step 🧩",
-            explanation="Breaking the word into smaller parts supports recall.",
-            confidence=0.88,
+            recommendation="guided_break",
+            headline="Let’s reset and try calmly 💙",
+            explanation="Fatigue can affect pronunciation accuracy.",
+            confidence=0.80,
             next_steps=[
-                "Practice the first syllable",
-                "Add syllables gradually",
-                "Try recording again after each part"
+                "Take a short pause",
+                "Listen carefully to TTS",
+                "Try once more with focus"
             ],
             metrics_used=metrics
         )
 
-        _log_metrics_and_result("breakdown_training", metrics, rec)
+        _log_metrics_and_result("guided_break", metrics, rec)
         return rec
 
     # =========================
-    # 🔁 DEFAULT — Guided retry
+    # 🔁 DEFAULT
     # =========================
     rec = RecommendationOut(
         recommendation="guided_retry",
-        headline="Let’s try that again — you’re learning 💪",
-        explanation="Repeating helps lock in pronunciation.",
+        headline="Keep practicing — you're improving 💪",
+        explanation="Repetition strengthens pronunciation memory.",
         confidence=0.76,
         next_steps=[
             "Replay the audio",
-            "Repeat calmly",
+            "Repeat slowly",
             "Record again when ready"
         ],
         metrics_used=metrics
@@ -97,27 +120,20 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
     return rec
 
 
-
 def _log_metrics_and_result(decision: str, metrics: dict, rec: RecommendationOut):
-    """
-    Pretty-print both the decision metrics AND the recommendation result
-    so debugging feels like storytelling 📊📖
-    """
 
     print("\n=============== 🤖 RECOMMENDATION ENGINE ===============")
     print(f"📌 Decision     : {decision}")
-    print(f"📝 Word         : {metrics.get('word')}")
+    print(f"📝 Text         : {metrics.get('text')}")
     print(f"🗣️ Spoken       : {metrics.get('spoken')}")
+    print(f"📚 Type         : {metrics.get('content_type')}")
     print(f"🎯 Score        : {metrics.get('score')}")
     print(f"📊 Attempts     : {metrics.get('attempts')}")
     print(f"⏩ Pace         : {metrics.get('pace')}")
     print("---------------------------------------------------------")
-    print("📤 Generated Feedback:")
-    print(f"   🧭 Recommendation : {rec.recommendation}")
-    print(f"   🏷  Headline       : {rec.headline}")
-    print(f"   📖 Explanation    : {rec.explanation}")
-    print(f"   🔒 Confidence     : {rec.confidence}")
-    print(f"   📌 Next Steps:")
-    for step in rec.next_steps:
-        print(f"      • {step}")
-    print("=========================================================")
+    print("📤 Recommendation:")
+    print(f"   🧭 {rec.recommendation}")
+    print(f"   🏷  {rec.headline}")
+    print(f"   📖 {rec.explanation}")
+    print(f"   🔒 Confidence: {rec.confidence}")
+    print("=========================================================\n")

@@ -1,5 +1,5 @@
-from fastapi import Depends
-from app.auth.dependencies import get_current_user_id
+# app/feedback/routes/aggregate.py
+
 from app.insights.schemas import FeedbackIn
 
 from app.insights.routes.feedback import (
@@ -12,11 +12,11 @@ from app.insights.routes.recommendations import recommendation_endpoint
 
 def aggregate_feedback_handler(
     data: FeedbackIn,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int,
 ):
     """
-    Runs ALL feedback-related insights in ONE shot.
-    Uses existing handlers internally.
+    Unified feedback engine.
+    Runs trend + pattern + feedback + recommendation.
     """
 
     trend_result = analyze_trend_handler(data, user_id)

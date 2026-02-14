@@ -1,138 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Dynamic Learning • Dyslexia EmpowerHub</title>
+<title>Dyslexia Dynamic Learning 🌱</title>
 
 <style>
-body {
-    font-family: "Segoe UI", sans-serif;
-    background: #f2f5f9;
-    margin: 0;
-    padding: 40px;
-    color: #2b2b2b;
+body{
+  font-family: Arial, sans-serif;
+  background:#f4f6fb;
+  padding:40px;
+  color:#1f2937;
 }
 
-.container {
-    max-width: 820px;
-    margin: auto;
-    background: white;
-    padding: 35px;
-    border-radius: 18px;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.08);
+.container{
+  max-width:900px;
+  margin:auto;
+  background:white;
+  padding:30px;
+  border-radius:12px;
+  box-shadow:0 10px 25px rgba(0,0,0,0.08);
 }
 
-h1 { text-align: center; margin-bottom: 5px; }
-.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
-
-.section { margin-bottom: 30px; }
-
-label { font-weight: 600; display: block; margin-bottom: 6px; }
-
-input[type="text"], textarea, select {
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    margin-bottom: 10px;
+h1{
+  text-align:center;
+  margin-bottom:10px;
 }
 
-textarea { resize: none; font-size: 18px; }
-
-button {
-    padding: 10px 16px;
-    font-size: 15px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    margin-right: 8px;
-    margin-top: 8px;
+.subtitle{
+  text-align:center;
+  color:#6b7280;
+  margin-bottom:30px;
 }
 
-.primary { background: #2563eb; color: white; }
-.secondary { background: #e5e7eb; }
-.success { background: #16a34a; color: white; }
-
-.status { margin-top: 8px; font-weight: 600; }
-
-.output {
-    margin-top: 20px;
-    padding: 15px;
-    background: #f9fafb;
-    border-radius: 10px;
-    line-height: 1.6;
+input, textarea, select{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  margin-bottom:15px;
+  border-radius:8px;
+  border:1px solid #ddd;
+  font-size:16px;
 }
 
-.score { margin-top: 15px; font-weight: 600; }
-
-.instructions {
-    font-size: 14px;
-    color: #555;
-    margin-bottom: 10px;
+button{
+  padding:10px 18px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  margin-right:10px;
+  font-weight:bold;
 }
 
-.slider-container {
-    margin-top: 10px;
-    display: none;
+.primary{ background:#2563eb; color:white; }
+.success{ background:#16a34a; color:white; }
+.warning{ background:#f59e0b; color:white; }
+.danger{ background:#dc2626; color:white; }
+
+.result-box{
+  margin-top:20px;
+  padding:15px;
+  border-radius:10px;
+  background:#f9fafb;
 }
 
+.word-green{ color:#16a34a; font-weight:bold; }
+.word-red{ color:#dc2626; font-weight:bold; }
+.word-orange{ color:#f59e0b; font-weight:bold; }
+
+hr{ margin:25px 0; }
 </style>
 </head>
 
 <body>
-
 <div class="container">
 
-<h1>📘 Dynamic Learning Module</h1>
-<div class="subtitle">
-Explore any word or sentence. Listen. Understand. Practice.
-</div>
+<h1>🌱 Dynamic Learning Module</h1>
+<p class="subtitle">Practice words, phrases or sentences in a dyslexia-friendly way.</p>
 
 <!-- AUTH -->
-<div class="section">
-<label>🔐 JWT Token</label>
-<input type="text" id="tokenInput" placeholder="Paste your JWT token here..." />
+<label>🔐 Enter JWT Token</label>
+<input id="tokenInput" placeholder="Paste your access token here..." />
+
 <button class="primary" onclick="connectBackend()">Connect Backend</button>
-<div class="status" id="connectionStatus">Status: Not Connected</div>
-</div>
 
-<!-- INPUT -->
-<div class="section">
-<label>✍️ Enter a Word or Sentence</label>
-<div class="instructions">
-Type something you want to understand. Then adjust the listening pace if needed.
-</div>
+<hr/>
 
-<textarea id="inputText" rows="3" placeholder="Example: Good morning"></textarea>
+<!-- TEXT INPUT -->
+<label>✍️ Enter Word / Phrase / Sentence</label>
+<textarea id="userText" rows="3" placeholder="Example: Hello my name is Tharun"></textarea>
 
-<!-- Pace Control -->
-<label>🎚 Listening Pace</label>
-<select id="paceMode" onchange="updatePaceMode()">
-    <option value="slow">Slow</option>
-    <option value="medium" selected>Medium</option>
-    <option value="fast">Fast</option>
-    <option value="custom">Custom</option>
-</select>
+<button class="primary" onclick="analyzeText()">Analyze</button>
+<button class="success" onclick="playTTS()">🔊 Play Text</button>
 
-<div class="slider-container" id="customPaceContainer">
-    <input type="range" id="customPace" min="0.5" max="1.5" step="0.05" value="0.9"
-           oninput="updateCustomPaceValue()" />
-    <div id="paceValue">Rate: 0.9</div>
-</div>
+<!-- PACE -->
+<label>🎵 TTS Pace</label>
+<input type="range" id="paceSlider" min="0.5" max="1.5" step="0.1" value="1" />
+<span id="paceValue">1</span>
 
-<button class="primary" onclick="analyzeText()">Analyze Meaning</button>
-<button class="secondary" onclick="speakOriginal()">🔊 Listen to Text</button>
-<button class="secondary" onclick="speakMeaning()">🔊 Listen to Meaning</button>
-<button class="success" onclick="startPractice()">🎤 Practice Speaking</button>
-</div>
+<hr/>
 
-<!-- OUTPUT -->
-<div class="section">
-<div class="output" id="result"></div>
-<div class="score" id="score"></div>
-</div>
+<!-- MEANING -->
+<div id="meaningBox" class="result-box"></div>
+<button class="success" onclick="playMeaningTTS()">🔊 Play Meaning</button>
+
+<!-- PRACTICE -->
+<button class="warning" onclick="startPractice()">🎤 Start Practice</button>
+
+<div id="practiceResult" class="result-box"></div>
+
+<div id="insightsBox" class="result-box"></div>
 
 </div>
 
@@ -141,201 +117,267 @@ Type something you want to understand. Then adjust the listening pace if needed.
 const API = "http://127.0.0.1:8000";
 let AUTH = {};
 let isConnected = false;
-let currentMeaning = "";
-const dynamicCache = {};
 
-// ----------------------------
-// Pace Control
-// ----------------------------
-function getSpeechRate() {
-    const mode = document.getElementById("paceMode").value;
+const analyzeCache = {};
+const feedbackCache = {};
 
-    if (mode === "slow") return 0.75;
-    if (mode === "medium") return 0.9;
-    if (mode === "fast") return 1.1;
-    if (mode === "custom") {
-        return parseFloat(document.getElementById("customPace").value);
-    }
+const slider = document.getElementById("paceSlider");
+slider.oninput = () => {
+  document.getElementById("paceValue").innerText = slider.value;
+};
+
+function connectBackend(){
+  const token = document.getElementById("tokenInput").value.trim();
+  if(!token){
+    alert("Enter token first");
+    return;
+  }
+
+  AUTH = {
+    Authorization: `Bearer ${token}`
+  };
+
+  isConnected = true;
+
+  console.log("Connected with token:", token);
+  alert("Backend Connected ✅");
 }
 
-function updatePaceMode() {
-    const mode = document.getElementById("paceMode").value;
-    document.getElementById("customPaceContainer").style.display =
-        mode === "custom" ? "block" : "none";
+function normalize(text){
+  return text.toLowerCase().replace(/[^a-zA-Z\s]/g,"").trim();
 }
 
-function updateCustomPaceValue() {
-    const val = document.getElementById("customPace").value;
-    document.getElementById("paceValue").innerText = `Rate: ${val}`;
+function getText(){
+  return document.getElementById("userText").value.trim();
 }
 
-// ----------------------------
-// Connect
-// ----------------------------
-function connectBackend() {
-    const token = document.getElementById("tokenInput").value.trim();
-    if (!token) return alert("Enter a valid JWT token.");
+/* ======================
+   ANALYZE
+====================== */
 
-    AUTH = { Authorization: "Bearer " + token };
-    isConnected = true;
+async function analyzeText(){
+  if(!isConnected) return alert("Connect backend first");
 
-    document.getElementById("connectionStatus").innerText =
-        "Status: ✅ Connected";
+  const text = getText();
+  if(!text) return;
+
+  if(analyzeCache[text]){
+    renderMeaning(analyzeCache[text]);
+    return;
+  }
+
+  const res = await fetch(`${API}/dynamic/analyze`,{
+    method:"POST",
+    headers:{...AUTH,"Content-Type":"application/json"},
+    body:JSON.stringify({text})
+  });
+
+  const data = await res.json();
+  analyzeCache[text] = data;
+
+  renderMeaning(data);
 }
 
-// ----------------------------
-// Helpers
-// ----------------------------
-function normalize(text) {
-    return text.toLowerCase().trim();
+function renderMeaning(data){
+  document.getElementById("meaningBox").innerHTML =
+    `<strong>📘 Type:</strong> ${data.type}<br/><br/>
+     <strong>🧠 Meaning:</strong><br/>${data.meaning}`;
 }
 
-function getCurrentText() {
-    return document.getElementById("inputText").value.trim();
+/* ======================
+   TTS (INDEPENDENT)
+====================== */
+
+function playTTS(){
+  let text = getText();
+  if(!text) return;
+
+  if(!/[.!?]$/.test(text)){
+    text += ".";
+  }
+
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = parseFloat(slider.value);
+  utter.pitch = 1.05;
+  utter.volume = 1;
+
+  speechSynthesis.speak(utter);
 }
 
-// ----------------------------
-// Analyze (AI Meaning Only)
-// ----------------------------
-async function analyzeText() {
-    if (!isConnected) return alert("Connect backend first.");
-
-    const text = getCurrentText();
-    if (!text) return;
-
-    const key = normalize(text);
-
-    if (dynamicCache[key]) {
-        displayResult(dynamicCache[key]);
-        return;
-    }
-
-    const res = await fetch(`${API}/dynamic/analyze`, {
-        method: "POST",
-        headers: { ...AUTH, "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-    });
-
-    const data = await res.json();
-    dynamicCache[key] = data;
-    displayResult(data);
-}
-
-function displayResult(data) {
-    currentMeaning = data.meaning;
-
-    document.getElementById("result").innerHTML =
-        `<strong>Type:</strong> ${data.type}<br/><br/>
-         <strong>Meaning:</strong><br/>${data.meaning}`;
-
-    document.getElementById("score").innerText = "";
-}
-
-// ----------------------------
-// TTS (Independent)
-// ----------------------------
-function speakOriginal() {
-    const text = getCurrentText();
-    if (!text) return;
+    function playMeaningTTS(){
+    const box = document.getElementById("meaningBox");
+    const text = box.innerText;
+    if(!text) return;
 
     const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = getSpeechRate();
+    utter.rate = 0.9;
+    utter.pitch = 1;
+    utter.volume = 1;
+
     speechSynthesis.speak(utter);
+    }
+
+/* ======================
+   STT PRACTICE
+====================== */
+
+function startPractice(){
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if(!SpeechRecognition){
+    alert("Speech Recognition not supported.");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 3;
+
+  recognition.onresult = async (e)=>{
+    const spoken = normalize(e.results[0][0].transcript);
+    await evaluatePractice(spoken);
+  };
+
+  recognition.start();
 }
 
-function speakMeaning() {
-    if (!currentMeaning) return;
-
-    const utter = new SpeechSynthesisUtterance(currentMeaning);
-    utter.rate = getSpeechRate();
-    speechSynthesis.speak(utter);
+function similarity(a,b){
+  let longer = a.length > b.length ? a : b;
+  let shorter = a.length > b.length ? b : a;
+  let same = 0;
+  for(let i=0;i<shorter.length;i++){
+    if(a[i]===b[i]) same++;
+  }
+  return same/longer.length;
 }
 
-// ----------------------------
-// STT Practice (Independent)
-// ----------------------------
-function startPractice() {
-    const expected = getCurrentText();
-    if (!expected) return;
+async function evaluatePractice(spoken){
+  const expectedRaw = getText();
+  const expected = normalize(expectedRaw);
 
-    const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
+  const expectedWords = expected.split(" ");
+  const spokenWords = spoken.split(" ");
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
+  let scoreCount = 0;
+  let html = "<strong>📝 Word Comparison</strong><br/><br/>";
 
-    recognition.onresult = function (event) {
-        const spoken = normalize(event.results[0][0].transcript);
-        evaluatePractice(spoken);
+  expectedWords.forEach(word=>{
+    const match = spokenWords.find(sw=>similarity(sw,word)>0.8);
+
+    if(spokenWords.includes(word)){
+      html+=`<span class="word-green">${word}</span> `;
+      scoreCount++;
+    }
+    else if(match){
+      html+=`<span class="word-orange">${word}</span> `;
+      scoreCount+=0.5;
+    }
+    else{
+      html+=`<span class="word-red">${word}</span> `;
+    }
+  });
+
+  const extra = spokenWords.filter(sw=>!expectedWords.includes(sw));
+  if(extra.length){
+    html+="<br/><br/><strong>Extra Words:</strong> ";
+    extra.forEach(w=>{
+      html+=`<span class="word-orange">${w}</span> `;
+    });
+  }
+
+  const score = Math.round((scoreCount/expectedWords.length)*100);
+  html+=`<br/><br/><strong>🎯 Score:</strong> ${score}%`;
+
+  document.getElementById("practiceResult").innerHTML = html;
+
+  await saveAttempt(expectedRaw, spoken, score);
+  await loadAggregateFeedback(expectedRaw, spoken, score);
+}
+
+/* ======================
+   SAVE ATTEMPT
+====================== */
+
+async function saveAttempt(text, spoken, score){
+  if(!isConnected) return;
+
+  await fetch(`${API}/dynamic/attempt`,{
+    method:"POST",
+    headers:{...AUTH,"Content-Type":"application/json"},
+    body:JSON.stringify({
+      text: text,
+      text_type: text.includes(" ") ? "sentence" : "word",
+      spoken: spoken,
+      score: Number(score),
+      pace: parseFloat(slider.value)
+    })
+  });
+}
+/* ======================
+   AGGREGATE FEEDBACK
+====================== */
+
+async function loadAggregateFeedback(word, spoken, score){
+
+  const key = word + "_" + spoken;
+
+  if(feedbackCache[key]){
+    renderInsights(feedbackCache[key]);
+    return;
+  }
+
+  const payload = {
+    mode: "dynamic",
+    content_type: word.includes(" ") ? "sentence" : "word",
+    text: word,
+    spoken: spoken,
+    score: Number(score),
+    attempts: 1,
+    pace: parseFloat(slider.value)
     };
 
-    recognition.start();
+  const res = await fetch(`${API}/feedback/aggregate`,{
+    method:"POST",
+    headers:{...AUTH,"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+
+  if(!res.ok){
+    console.error("Aggregate failed", await res.text());
+    return;
+  }
+
+  const data = await res.json();
+
+  feedbackCache[key] = data;
+
+  renderInsights(data);
 }
 
-// ----------------------------
-// Word-Based Similarity
-// ----------------------------
-function evaluatePractice(spoken) {
-    const expected = normalize(getCurrentText());
+function renderInsights(data){
+  let html="<strong>🧠 Insights</strong><br/><br/>";
 
-    const expectedWords = expected.split(" ");
-    const spokenWords = spoken.split(" ");
-
-    const correct = expectedWords.filter(w => spokenWords.includes(w));
-    const missing = expectedWords.filter(w => !spokenWords.includes(w));
-    const extra = spokenWords.filter(w => !expectedWords.includes(w));
-
-    const score = Math.round((correct.length / expectedWords.length) * 100);
-
-    renderComparison(correct, missing, extra, score);
-
-    saveAttempt(expected, spoken, score);
-}
-
-function renderComparison(correct, missing, extra, score) {
-    let html = "<strong>Comparison:</strong><br/><br/>";
-
-    correct.forEach(w => {
-        html += `<span style="color:green;">${w}</span> `;
+  if(data.feedback){
+    html+=`<strong>Verdict:</strong> ${data.feedback.verdict}<br/>`;
+    data.feedback.feedback.forEach(f=>{
+      html+=`• ${f}<br/>`;
     });
+    html+=`<br/><em>${data.feedback.confidence_tip}</em><br/><br/>`;
+  }
 
-    missing.forEach(w => {
-        html += `<span style="color:red;">${w} (missing)</span> `;
+  if(data.recommendation){
+    html+=`<strong>➡️ ${data.recommendation.headline}</strong><br/>`;
+    html+=`${data.recommendation.explanation}<br/><br/>`;
+    data.recommendation.next_steps.forEach(s=>{
+      html+=`• ${s}<br/>`;
     });
+  }
 
-    extra.forEach(w => {
-        html += `<span style="color:red;">${w} (extra)</span> `;
-    });
-
-    document.getElementById("score").innerHTML =
-        `🎯 Match Score: ${score}%<br/><br/>${html}`;
-}
-
-// ----------------------------
-// Save Attempt to Backend
-// ----------------------------
-async function saveAttempt(text, spoken, score) {
-    if (!isConnected) return;
-
-    const textType = text.includes(" ") ? "sentence" : "word";
-    const pace = getSpeechRate();
-
-    await fetch(`${API}/dynamic/attempt`, {
-        method: "POST",
-        headers: { ...AUTH, "Content-Type": "application/json" },
-        body: JSON.stringify({
-            text,
-            text_type: textType,
-            spoken,
-            score,
-            pace
-        })
-    });
+  document.getElementById("insightsBox").innerHTML = html;
 }
 
 </script>
-
 </body>
 </html>

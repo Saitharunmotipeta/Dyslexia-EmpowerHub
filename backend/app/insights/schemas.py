@@ -1,13 +1,15 @@
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 
 class FeedbackIn(BaseModel):
-    word: str
+    mode: Literal["static", "dynamic"]
+    content_type: Literal["word", "phrase", "sentence"]
+    text: str
     spoken: str
-    similarity: float
+    score: float
     attempts: int
-    pace: str | None = "medium"
+    pace: float | None = 0.9
 
 
 class FeedbackOut(BaseModel):

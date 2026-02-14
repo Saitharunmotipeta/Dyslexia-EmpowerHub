@@ -294,44 +294,41 @@ async function evaluatePronunciation() {
   const result = await res.json();
 
   const payload = {
-    word: expectedWord,
+    mode: "static",
+    content_type: "word",
+    text: expectedWord,
     spoken: spokenText,
-    similarity: result.score,
+    score: Number(result.score),
     attempts: result.attempts || 1,
-    pace: paceMode.value
+    pace:
+      paceMode.value === "custom"
+        ? Number(customPace.value)
+        : paceMode.value === "slow"
+        ? 0.6
+        : paceMode.value === "fast"
+        ? 1.1
+        : 0.85
   };
 
-  const [f, r, t, p] = await Promise.all([
-    fetch(API + "/feedback/generate", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()),
-
-    fetch(API + "/feedback/recommendation", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()),
-
-    fetch(API + "/feedback/trend", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()),
-
-    fetch(API + "/feedback/pattern", {
-      method: "POST", headers: { ...AUTH, "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(r => r.json())
-  ]);
+  const agg = await fetch(`${API}/feedback/aggregate`, {
+    method: "POST",
+    headers: { ...AUTH, "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  }).then(r => r.json());
 
   output.innerText =
 `📘 Word: ${expectedWord}
 🗣 You said: ${spokenText}
 📊 Score: ${result.score}%
 
-🧠 Feedback: ${f.message || f.feedback}
-➡️ Recommendation: ${r.message || r.recommendation}
-📈 Trend: ${t.trend || t.message}
-🔍 Pattern: ${p.pattern || p.message}`;
+🧠 Verdict: ${agg.feedback?.verdict}
+💬 ${agg.feedback?.feedback?.join("\n")}
+
+➡️ ${agg.recommendation?.headline}
+📖 ${agg.recommendation?.explanation}
+
+📈 ${agg.trend?.message}
+🔍 ${agg.pattern?.message}`;
 }
 
 function toggleCustomPace() {
