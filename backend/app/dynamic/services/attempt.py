@@ -43,6 +43,8 @@ def create_dynamic_attempt(
     score: float,
     pace: float | None
 ) -> DynamicAttempt:
+    
+    print(f"Creating dynamic attempt for user_id={user_id}, text='{text}', text_type='{text_type}', spoken='{spoken}', score={score}, pace={pace}")
 
     public_id = generate_dynamic_attempt_id(db)
 

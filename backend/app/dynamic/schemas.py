@@ -20,5 +20,5 @@ class DynamicAttemptCreate(BaseModel):
 
 
 class DynamicAttemptOut(BaseModel):
-    attempt_id: int
+    attempt_id: str
     message: str
