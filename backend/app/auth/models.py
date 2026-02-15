@@ -30,14 +30,14 @@ class User(Base):
     total_time_spent = Column(Integer, default=0)
     courses_completed = Column(Integer, default=0)
 
-    dynamic_attempts = relationship(
-    "DynamicAttempt",
+    level_words = relationship(
+    "LevelWord",
     back_populates="user",
     cascade="all, delete-orphan"
 )
 
-level_words = relationship(
-    "LevelWord",
+    dynamic_attempts = relationship(
+    "DynamicAttempt",
     back_populates="user",
     cascade="all, delete-orphan"
 )

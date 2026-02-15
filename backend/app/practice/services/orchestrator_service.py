@@ -18,6 +18,8 @@ async def run_practice_flow(
     level_id: int,
     spoken: str,
     user_id: int,
+    pace: float,
+    mode: str ,
 ):
     """
     Browser-based practice orchestration.
@@ -69,7 +71,7 @@ async def run_practice_flow(
             .filter(
                 LevelWord.user_id == user_id,
                 LevelWord.word_id == word_id,
-                LevelWord.level_id == level_id,
+                # LevelWord.level_id == level_id,
             )
             .first()
         )
@@ -79,7 +81,7 @@ async def run_practice_flow(
             level_word = LevelWord(
                 user_id=user_id,
                 word_id=word_id,
-                level_id=level_id,
+                # level_id=level_id,
                 attempts=0,
                 correct_attempts=0,
                 mastery_score=0.0,
@@ -118,11 +120,13 @@ async def run_practice_flow(
     # 4️⃣ Feedback + Recommendation
     # -------------------------
     feedback_input = FeedbackIn(
-        word=expected,
+        mode="static",
+        content_type="word",
+        text=expected,
         spoken=spoken,
-        similarity=similarity_percent,
+        score=similarity_percent,
         attempts=attempts,
-        pace="browser",
+        pace=pace,
     )
 
     print("\n💬 Generating feedback...")
@@ -143,6 +147,7 @@ async def run_practice_flow(
         "similarity": similarity_percent,
         "verdict": verdict,
         "is_mastered": is_mastered,
+        "pace": pace,
         "attempts": attempts,
         "highest_score": highest_score,
         "feedback": feedback,

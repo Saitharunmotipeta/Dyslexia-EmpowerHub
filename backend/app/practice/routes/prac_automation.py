@@ -7,6 +7,7 @@ from app.auth.dependencies import get_current_user_id
 
 class PracticeAutoIn(BaseModel):
     word_id: int
+    pace:float
     level_id: int
     spoken: str
 
@@ -28,6 +29,8 @@ async def practice_auto(
             level_id=payload.level_id,
             spoken=payload.spoken,
             user_id=user_id,
+            pace = payload.pace,
+            mode = "static",
         )
 
         return {

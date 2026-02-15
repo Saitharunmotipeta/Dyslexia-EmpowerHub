@@ -46,8 +46,10 @@ def get_words_for_level_handler(level_id: int, db: Session, user_id: int):
 
     progress_rows = (
         db.query(LevelWord)
-        .filter(LevelWord.user_id == user_id,
-                LevelWord.word_id.in_(word_ids))
+        .filter(
+            LevelWord.user_id == user_id,
+            LevelWord.word_id.in_(word_ids)
+        )
         .all()
     )
 
@@ -63,12 +65,11 @@ def get_words_for_level_handler(level_id: int, db: Session, user_id: int):
                 id=w.id,
                 text=w.text,
                 phonetics=w.phonetics,
-
-                # 🔥 REQUIRED FIELDS — these FIX the 500 error
                 syllables=w.syllables,
                 difficulty=w.difficulty,
 
-                image_url=w.image_url,
+                # ❌ Removed image_url (not in Word model)
+
                 is_mastered=lw.is_mastered if lw else False,
                 mastery_score=lw.mastery_score if lw else 0.0,
                 attempts=lw.attempts if lw else 0,
