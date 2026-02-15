@@ -49,7 +49,6 @@ def evaluate_practice(
         .filter(
             LevelWord.user_id == user_id,
             LevelWord.word_id == word.id,
-            LevelWord.level_id == word.level_id,
         )
         .first()
     )
@@ -58,7 +57,6 @@ def evaluate_practice(
         print("🆕 Creating LevelWord record")
         level_word = LevelWord(
             user_id=user_id,
-            level_id=word.level_id,
             word_id=word.id,
             attempts=0,
             correct_attempts=0,
