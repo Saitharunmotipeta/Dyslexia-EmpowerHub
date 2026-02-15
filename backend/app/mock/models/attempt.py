@@ -1,42 +1,27 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, JSON, String
+from sqlalchemy import (Column,Integer,ForeignKey,DateTime,JSON,String,Float,Index)
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.sql import func
-
+from sqlalchemy.orm import relationship
 from app.database.connection import Base
-
 
 class MockAttempt(Base):
     __tablename__ = "mock_attempts"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    level_id = Column(Integer, ForeignKey("levels.id"), nullable=False)
-    attempt_code = Column(Integer, unique=True, index=True, nullable=False)
-
-    # status lifecycle: started → completed
+    user_id = Column(Integer,ForeignKey("users.id", ondelete="CASCADE"),nullable=False,index=True)
+    level_id = Column(Integer,ForeignKey("levels.id", ondelete="CASCADE"),nullable=False,index=True)
+    public_attempt_id = Column(String(20), unique=True, index=True, nullable=False)
     status = Column(String, default="started", nullable=False)
-
-    # Stores per-word results
-    # Example:
-    # {
-    #   "words": [
-    #     {
-    #       "word_id": 12,
-    #       "expected": "apple",
-    #       "recognized": "aple",
-    #       "score": 82.5,
-    #       "verdict": "good",
-    #       "time_taken": 97
-    #     }
-    #   ]
-    # }
     results = Column(MutableDict.as_mutable(JSON),nullable=False,default=lambda: {"words": []})
-
-    total_score = Column(Integer, nullable=True)
+    total_score = Column(Float, nullable=True)
     verdict = Column(String, nullable=True)
-
-    started_at = Column(DateTime(timezone=True), server_default=func.now())  # ✅ ADD THIS
-    completed_at = Column(DateTime(timezone=True), nullable=True, default=None, onupdate=func.now())
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    last_accessed_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    user = relationship("User", backref="mock_attempts")
+    level = relationship("Level")
+
+    __table_args__ = (
+        Index("idx_mock_user_level", "user_id", "level_id"),
+    )

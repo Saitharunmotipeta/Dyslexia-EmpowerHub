@@ -36,3 +36,8 @@ class User(Base):
     cascade="all, delete-orphan"
 )
 
+level_words = relationship(
+    "LevelWord",
+    back_populates="user",
+    cascade="all, delete-orphan"
+)
