@@ -8,7 +8,7 @@ class WordStatusOut(BaseModel):
     phonetics: str
     syllables: str      # 🚨 REQUIRED
     difficulty: str 
-    image_url: Optional[str]
+    # image_url: Optional[str]
     is_mastered: bool
     mastery_score: float
     attempts: int
