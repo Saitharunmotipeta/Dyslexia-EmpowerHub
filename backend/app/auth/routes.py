@@ -24,7 +24,7 @@ def get_db():
 # ─────────────────────────────────────────────
 # REGISTER
 # ─────────────────────────────────────────────
-@router.post("/register")
+@router.post("/signup")
 def register(data: schemas.RegisterIn, db: Session = Depends(get_db)):
     user = register_user(
         db=db,
