@@ -342,7 +342,7 @@ async function finishMock() {
 // }
 async function loadReport() {
   const res = await fetch(
-    `${API}/mock/report?attempt_id=${mockAttemptId}`,
+    `${API}/mock/report?public_attempt_id=${mockAttemptId}`,
     {
       method: "POST",
       headers: {

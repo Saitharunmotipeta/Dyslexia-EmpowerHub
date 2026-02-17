@@ -12,7 +12,7 @@ import random
 def is_mock_unlocked(
     db: Session,
     user_id: int,
-    level_id: int
+    # level_id: int
 ) -> bool:
     """
     Unlock mock based on PRACTICE mastery.
@@ -21,7 +21,7 @@ def is_mock_unlocked(
 
     total = db.query(LevelWord).filter(
         LevelWord.user_id == user_id,
-        LevelWord.level_id == level_id
+        # LevelWord.level_id == level_id
     ).count()
 
     if total == 0:
@@ -29,7 +29,7 @@ def is_mock_unlocked(
 
     mastered = db.query(LevelWord).filter(
         LevelWord.user_id == user_id,
-        LevelWord.level_id == level_id,
+        # LevelWord.level_id == level_id,
         LevelWord.is_mastered.is_(True)
     ).count()
 

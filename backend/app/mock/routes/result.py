@@ -20,7 +20,7 @@ def get_mock_result(
         return finalize_mock_attempt(
             db=db,
             user_id=user_id,
-            attempt_code=payload.attempt_id
+            public_attempt_id=payload.attempt_id
         )
 
     except ValueError as e:

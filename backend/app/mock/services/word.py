@@ -30,7 +30,7 @@ def process_mock_word(
 
     # 1️⃣ Fetch attempt
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.attempt_code == attempt_id,
+        MockAttempt.public_attempt_id == str(attempt_id),
         MockAttempt.user_id == user_id
     ).first()
 

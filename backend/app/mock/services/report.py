@@ -12,12 +12,12 @@ from app.mock.models.attempt import MockAttempt
 def generate_mock_report_pdf(
     db: Session,
     user_id: int,
-    attempt_id: int  # attempt_code
+    public_attempt_id: str  # attempt_code
 ) -> BytesIO:
 
     # ✅ Fetch by public attempt_code
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.attempt_code == attempt_id
+        MockAttempt.public_attempt_id == public_attempt_id
     ).first()
 
     if not attempt:
@@ -51,7 +51,7 @@ def generate_mock_report_pdf(
 
     # ================= HEADER =================
     draw("Mock Test Performance Report", size=18, bold=True, offset=30)
-    draw(f"Attempt Code: {attempt.attempt_code}")
+    draw(f"Attempt Code: {attempt.public_attempt_id}")
     draw(f"Generated on: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     divider()
 

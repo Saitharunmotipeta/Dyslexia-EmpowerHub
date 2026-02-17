@@ -10,7 +10,7 @@ from app.mock.models.attempt import MockAttempt
 
 
 def mock_report_handler(
-    attempt_id: int = Query(...),
+    public_attempt_id: str = Query(...),
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
 ):
@@ -21,7 +21,7 @@ def mock_report_handler(
     """
 
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.attempt_code == attempt_id,
+        MockAttempt.public_attempt_id == public_attempt_id,
         MockAttempt.user_id == user_id
     ).first()
 
@@ -38,10 +38,10 @@ def mock_report_handler(
     pdf_buffer = generate_mock_report_pdf(
         db=db,
         user_id=user_id,
-        attempt_id=attempt_id
+        public_attempt_id=public_attempt_id
     )
 
-    print(f"📄 PDF REPORT GENERATED for attempt_id={attempt_id}")
+    print(f"📄 PDF REPORT GENERATED for attempt_id={public_attempt_id}")
     print(f"📦 PDF size: {len(pdf_buffer.getvalue())} bytes")
 
     results = attempt.results or {}
@@ -49,7 +49,7 @@ def mock_report_handler(
 
     # ✅ JSON preview response
     return {
-        "attempt_id": attempt_id,
+        "attempt_id": public_attempt_id,
         "final_score": attempt.total_score,
         "verdict": attempt.verdict,
         "words": [

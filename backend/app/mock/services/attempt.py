@@ -20,7 +20,6 @@ def start_mock_attempt(
     unlocked = is_mock_unlocked(
         db=db,
         user_id=user_id,
-        level_id=level_id
     )
 
     if not unlocked:
@@ -28,15 +27,14 @@ def start_mock_attempt(
             status_code=403,
             detail="You’re almost there! Complete more practice to unlock the mock test 💪"
         )
+
     REQUIRED_WORDS = 3
 
-    # 1️⃣ Get random words (no unlock, no levels)
     words = get_mock_words_for_level(
         db=db,
-        level_id=level_id,   # ✅ ADD THIS
+        level_id=level_id,
         limit=REQUIRED_WORDS
     )
-
 
     if len(words) < REQUIRED_WORDS:
         raise HTTPException(
@@ -44,23 +42,21 @@ def start_mock_attempt(
             detail="Not enough words available to start mock test"
         )
 
-    # 2️⃣ Generate unique 6-digit attempt code
-    attempt_code = generate_attempt_code()
+    # ✅ Generate unique public_attempt_id (string-safe)
+    public_attempt_id = str(generate_attempt_code())
 
-    # (optional but safe uniqueness check)
     while db.query(MockAttempt).filter(
-        MockAttempt.attempt_code == attempt_code
+        MockAttempt.public_attempt_id == public_attempt_id
     ).first():
-        attempt_code = generate_attempt_code()
+        public_attempt_id = str(generate_attempt_code())
 
-    # 3️⃣ Create attempt
+    # ✅ Correct model alignment
     attempt = MockAttempt(
         user_id=user_id,
-        level_id=level_id,
-        attempt_code=attempt_code,
+        level_id=level_id,  # REQUIRED (nullable=False)
+        public_attempt_id=public_attempt_id,
         status="started",
         results={"words": []},
-        started_at=datetime.utcnow()
     )
 
     db.add(attempt)
@@ -68,7 +64,7 @@ def start_mock_attempt(
     db.refresh(attempt)
 
     return {
-        "attempt_id": attempt.attempt_code,  # 🔑 public-facing
+        "attempt_id": attempt.public_attempt_id,
         "words": words,
         "message": "Mock test started. Take your time — you’ve got this 🌱"
     }
@@ -79,10 +75,10 @@ def start_mock_attempt(
 def finalize_mock_attempt(
     db: Session,
     user_id: int,
-    attempt_code: int
+    public_attempt_id: str
 ):
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.attempt_code == attempt_code,
+        MockAttempt.public_attempt_id == str(public_attempt_id),
         MockAttempt.user_id == user_id
     ).first()
 
@@ -171,7 +167,7 @@ def finalize_mock_attempt(
     db.commit()
 
     return {
-        "attempt_id": attempt.attempt_code,  # ✅ public-safe
+        "attempt_id": attempt.public_attempt_id,  # ✅ public-safe
         "score": total_score,
         "verdict": verdict,
         "words": words,
