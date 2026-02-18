@@ -43,7 +43,7 @@ def is_mock_unlocked(
 def can_unlock_next_level(
     db: Session,
     user_id: int,
-    attempt_code: int
+    public_attempt_id: str
 ) -> dict:
     """
     Decide whether user can proceed to the NEXT level
@@ -51,7 +51,7 @@ def can_unlock_next_level(
     """
 
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.attempt_code == attempt_code,
+        MockAttempt.public_attempt_id == str(public_attempt_id),
         MockAttempt.user_id == user_id
     ).first()
 
@@ -84,6 +84,7 @@ def can_unlock_next_level(
     )
 
     passed = attempt.total_score >= required_score
+    print("🔓 UNLOCK CHECK:", public_attempt_id, "Score:", attempt.total_score, "Required:", required_score)
 
     return {
         "can_proceed": passed,

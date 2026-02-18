@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS mock_attempts (
     updated_at TIMESTAMPTZ,
     last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
 
-    attempt_code INTEGER UNIQUE NOT NULL
+    public_attempt_id INTEGER UNIQUE NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS ix_mock_attempts_user ON mock_attempts(user_id);

@@ -59,7 +59,7 @@ def start_mock_automation(
     attempt = MockAttempt(
         user_id=user_id,
         level_id=level_id,
-        attempt_code=generate_attempt_code(),
+        public_attempt_id=generate_attempt_code(),
         status="started",
         results={"words": []},
     )
@@ -69,7 +69,7 @@ def start_mock_automation(
     db.refresh(attempt)
 
     return {
-        "attempt_code": attempt.attempt_code,
+        "public_attempt_id": attempt.public_attempt_id,
         "words": [
             {
                 "word_id": w.id,
@@ -83,7 +83,7 @@ def start_mock_automation(
 def submit_mock_word_automation(
     db: Session,
     user_id: int,
-    attempt_code: int,
+    public_attempt_id: int,
     word_id: int,
     audio,
 ):
@@ -94,7 +94,7 @@ def submit_mock_word_automation(
     attempt = (
         db.query(MockAttempt)
         .filter(
-            MockAttempt.attempt_code == attempt_code,
+            MockAttempt.public_attempt_id == str(public_attempt_id),
             MockAttempt.user_id == user_id
         )
         .first()
@@ -118,7 +118,7 @@ def submit_mock_word_automation(
     return process_mock_word(
         db=db,
         user_id=user_id,
-        attempt_id=attempt_code,   # public-safe key
+        public_attempt_id=public_attempt_id,   # public-safe key
         word_id=word_id,
         audio=audio,
     )
@@ -127,7 +127,7 @@ def submit_mock_word_automation(
 def complete_mock_automation(
     db: Session,
     user_id: int,
-    attempt_code: int,
+    public_attempt_id: int,
 ):
     """
     Finalize automated mock.
@@ -136,7 +136,7 @@ def complete_mock_automation(
     attempt = (
         db.query(MockAttempt)
         .filter(
-            MockAttempt.attempt_code == attempt_code,
+            MockAttempt.public_attempt_id == str(public_attempt_id),
             MockAttempt.user_id == user_id
         )
         .first()
@@ -156,5 +156,5 @@ def complete_mock_automation(
     return finalize_mock_attempt(
         db=db,
         user_id=user_id,
-        attempt_code=attempt_code,
+        public_attempt_id=public_attempt_id,
     )

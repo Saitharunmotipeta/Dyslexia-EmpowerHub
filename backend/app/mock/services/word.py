@@ -17,20 +17,20 @@ from app.learning.models.word import Word
 def process_mock_word(
     db: Session,
     user_id: int,
-    attempt_id: int,   # public attempt_code
+    public_attempt_id: int,   # public attempt_code
     word_id: int,
     spoken: str,       # ✅ FROM BROWSER
 ):
     MAX_WORDS = 3
 
     print("\n🧪 MOCK WORD PROCESS STARTED")
-    print(f"🆔 Attempt ID = {attempt_id}")
+    print(f"🆔 Attempt ID = {public_attempt_id}")
     print(f"📝 Word ID    = {word_id}")
     print(f"🗣️ Spoken     = {spoken}")
 
     # 1️⃣ Fetch attempt
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.public_attempt_id == str(attempt_id),
+        MockAttempt.public_attempt_id == str(public_attempt_id),
         MockAttempt.user_id == user_id
     ).first()
 
