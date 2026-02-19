@@ -23,7 +23,7 @@ export default function LoginPage() {
         password: password,
       });
 
-      router.push("/");
+      router.push("/dashboard");
     } catch {
       alert("Invalid credentials");
     } finally {
