@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createUserAccount } from "@/features/auth/service";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import styles from "./register.module.css";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,31 +30,46 @@ export default function RegisterPage() {
   };
 
   return (
-    <main style={{ padding: "40px", maxWidth: "400px" }}>
-      <h1>Create Account</h1>
+    <main className={styles.container}>
+      <h1 className={styles.title}>Create Account</h1>
 
-      <form onSubmit={handleSubmit}>
-        <Input
-          placeholder="Username"
-          required
-          onChange={(e) => setUsername(e.target.value)}
-        />
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.inputGroup}>
+          <label htmlFor="username" className={styles.label}>Username</label>
+          <Input
+            id="username"
+            placeholder="Enter your username"
+            required
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </div>
 
-        <Input
-          type="email"
-          placeholder="Email"
-          required
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <div className={styles.inputGroup}>
+          <label htmlFor="email" className={styles.label}>Email</label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="Enter your email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
 
-        <Input
-          type="password"
-          placeholder="Password"
-          required
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div className={styles.inputGroup}>
+          <label htmlFor="password" className={styles.label}>Password</label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </div>
 
-        <Button type="submit" loading={loading}>
+        <Button type="submit" loading={loading} className={styles.button}>
           Sign Up
         </Button>
       </form>

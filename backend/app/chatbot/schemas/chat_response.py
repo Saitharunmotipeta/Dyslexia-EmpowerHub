@@ -4,4 +4,5 @@ from typing import Literal
 
 class ChatResponse(BaseModel):
     reply: str
-    mode: Literal["context", "guidance", "general"]
+    mode: str
+    llm_used: bool
