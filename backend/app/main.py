@@ -17,6 +17,7 @@ from app.practice.routes import router as practice_router
 from app.insights.routes import router as feedback_router
 from app.mock.routes import router as mock_router
 from app.dynamic.routes import router as dynamic_router
+from app.chatbot.routes import router as chatbot_router
 from app.core.paths import TTS_CACHE_DIR, BASE_DIR
 
 
@@ -32,6 +33,7 @@ app.include_router(practice_router)
 app.include_router(feedback_router)
 app.include_router(mock_router)
 app.include_router(dynamic_router)
+app.include_router(chatbot_router)
 
 app.add_middleware(
     CORSMiddleware,
