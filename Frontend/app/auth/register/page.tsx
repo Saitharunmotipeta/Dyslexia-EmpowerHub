@@ -20,7 +20,7 @@ export default function RegisterPage() {
 
     try {
       await createUserAccount({ username, email, password });
-      router.push("/");
+      router.push("/auth/login");
     } catch {
       alert("Registration failed");
     } finally {

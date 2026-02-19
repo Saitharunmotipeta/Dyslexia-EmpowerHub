@@ -24,11 +24,11 @@ def get_db():
 # ─────────────────────────────────────────────
 # REGISTER
 # ─────────────────────────────────────────────
-@router.post("/signup")
+@router.post("/register")
 def register(data: schemas.RegisterIn, db: Session = Depends(get_db)):
     user = register_user(
         db=db,
-        name=data.name,
+        name=data.username,
         email=data.email,
         password=data.password,  # ✅ plaintext
     )
