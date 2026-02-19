@@ -1,9 +1,18 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from datetime import timezone
 
 from app.learning.models.level_word import LevelWord
 from app.mock.models.attempt import MockAttempt
-from app.dynamic.models.attempt import DynamicAttempt  # adjust path if needed
+from app.dynamic.models.dynamic_attempt import DynamicAttempt  # adjust path if needed
+
+
+def normalize(dt):
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 
 def run(user_id: int, db: Session) -> dict | None:
@@ -35,15 +44,15 @@ def run(user_id: int, db: Session) -> dict | None:
     candidates = []
 
     if last_word and last_word.last_practiced_at:
-        candidates.append(("word_practice", last_word.last_practiced_at))
+        candidates.append(("word_practice", normalize(last_word.last_practiced_at)))
 
     if last_mock:
         timestamp = last_mock.completed_at or last_mock.started_at
         if timestamp:
-            candidates.append(("mock", timestamp))
+            candidates.append(("mock", normalize(timestamp)))
 
     if last_dynamic:
-        candidates.append(("dynamic", last_dynamic.created_at))
+        candidates.append(("dynamic", normalize(last_dynamic.created_at)))
 
     if not candidates:
         return None
