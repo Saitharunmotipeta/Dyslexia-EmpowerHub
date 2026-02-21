@@ -3,8 +3,14 @@ from sqlalchemy import desc
 from datetime import timezone
 
 from app.learning.models.level_word import LevelWord
+from app.learning.models.word import Word
+from app.learning.models.level import Level
 from app.mock.models.attempt import MockAttempt
-from app.dynamic.models.dynamic_attempt import DynamicAttempt  # adjust path if needed
+from app.dynamic.models.dynamic_attempt import DynamicAttempt
+
+
+MOCK_THRESHOLD = 60
+SIMILARITY_THRESHOLD = 60
 
 
 def normalize(dt):
@@ -15,9 +21,15 @@ def normalize(dt):
     return dt
 
 
+def format_timestamp(dt):
+    if not dt:
+        return None
+    return dt.strftime("%B %d, %Y at %I:%M %p")
+
+
 def run(user_id: int, db: Session) -> dict | None:
 
-    # Last word practice
+    # ---- Fetch Latest Word Practice ----
     last_word = (
         db.query(LevelWord)
         .filter(LevelWord.user_id == user_id)
@@ -25,7 +37,7 @@ def run(user_id: int, db: Session) -> dict | None:
         .first()
     )
 
-    # Last mock (prefer completed_at)
+    # ---- Fetch Latest Mock ----
     last_mock = (
         db.query(MockAttempt)
         .filter(MockAttempt.user_id == user_id)
@@ -33,7 +45,7 @@ def run(user_id: int, db: Session) -> dict | None:
         .first()
     )
 
-    # Last dynamic attempt
+    # ---- Fetch Latest Dynamic ----
     last_dynamic = (
         db.query(DynamicAttempt)
         .filter(DynamicAttempt.user_id == user_id)
@@ -44,22 +56,69 @@ def run(user_id: int, db: Session) -> dict | None:
     candidates = []
 
     if last_word and last_word.last_practiced_at:
-        candidates.append(("word_practice", normalize(last_word.last_practiced_at)))
+        candidates.append(("word", normalize(last_word.last_practiced_at), last_word))
 
     if last_mock:
-        timestamp = last_mock.completed_at or last_mock.started_at
-        if timestamp:
-            candidates.append(("mock", normalize(timestamp)))
+        ts = last_mock.completed_at or last_mock.started_at
+        if ts:
+            candidates.append(("mock", normalize(ts), last_mock))
 
     if last_dynamic:
-        candidates.append(("dynamic", normalize(last_dynamic.created_at)))
+        candidates.append(("dynamic", normalize(last_dynamic.created_at), last_dynamic))
 
     if not candidates:
         return None
 
     latest = max(candidates, key=lambda x: x[1])
 
-    return {
-        "last_activity_type": latest[0],
-        "last_activity_time": latest[1],
-    }
+    activity_type, timestamp, record = latest
+    formatted_time = format_timestamp(timestamp)
+
+    # ---- Build Enriched Response ----
+    if activity_type == "word":
+        word_obj = record.word
+
+        return {
+            "summary_type": "activity",
+            "activity_type": "word_practice",
+            "timestamp": formatted_time,
+            "details": {
+                "word": word_obj.text if word_obj else None,
+                "last_similarity": record.last_similarity,
+                "mastery_score": record.mastery_score,
+                "is_mastered": record.is_mastered,
+                "below_threshold": record.last_similarity < SIMILARITY_THRESHOLD,
+            }
+        }
+
+    if activity_type == "mock":
+        level = record.level
+
+        return {
+            "summary_type": "activity",
+            "activity_type": "mock_test",
+            "timestamp": formatted_time,
+            "details": {
+                "level_name": level.name if level else None,
+                "score": record.total_score,
+                "verdict": record.verdict,
+                "below_threshold": (
+                    record.total_score is not None
+                    and record.total_score < MOCK_THRESHOLD
+                ),
+            }
+        }
+
+    if activity_type == "dynamic":
+        return {
+            "summary_type": "activity",
+            "activity_type": "dynamic_practice",
+            "timestamp": formatted_time,
+            "details": {
+                "text": record.text,
+                "score": record.score,
+                "below_threshold": record.score < MOCK_THRESHOLD,
+            }
+        }
+
+    return None

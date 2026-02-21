@@ -22,7 +22,6 @@ def update_word_status_handler(
         .filter(
             LevelWord.user_id == user_id,
             LevelWord.word_id == word_id,
-            LevelWord.level_id == word.level_id,
         )
         .first()
     )
@@ -31,7 +30,6 @@ def update_word_status_handler(
         record = LevelWord(
             user_id=user_id,
             word_id=word_id,
-            level_id=word.level_id,
         )
         db.add(record)
 

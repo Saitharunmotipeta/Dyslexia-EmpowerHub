@@ -11,16 +11,25 @@ def route_response(
     llm_required: bool,
 ):
 
-    # Deterministic numeric bypass
-    if not llm_required or (not USE_LLM_FOR_NUMERIC and intent == "level_completion"):
+    # ----------------------------
+    # 1️⃣ Deterministic Bypass
+    # ----------------------------
+    if not llm_required or (
+        not USE_LLM_FOR_NUMERIC and intent == "level_completion"
+    ):
         if structured_data:
             return format_deterministic(intent, structured_data), False
 
-    # If no prompt file but LLM required, fallback safely
+    # ----------------------------
+    # 2️⃣ Safe Prompt Handling
+    # ----------------------------
     if not prompt_file:
-        return "I'm here to help you improve step by step.", False
+        # If LLM required but no prompt defined
+        return "I'm here to help you move forward step by step.", False
 
-    # LLM path
+    # ----------------------------
+    # 3️⃣ LLM Path
+    # ----------------------------
     prompt_template = load_prompt(prompt_file)
 
     final_prompt = build_prompt(
@@ -33,34 +42,92 @@ def route_response(
 
     return reply, True
 
-
 def build_prompt(template: str, structured_data: dict | None, user_message: str):
 
     context_block = ""
 
     if structured_data:
-        context_lines = "\n".join(
-            [f"{k}: {v}" for k, v in structured_data.items()]
-        )
-        context_block = f"\nUser Data:\n{context_lines}\n"
 
-    return f"{template}\n{context_block}\nUser Question:\n{user_message}"
+        bullet_lines = []
 
+        for key, value in structured_data.items():
+
+            if isinstance(value, dict):
+                for sub_key, sub_val in value.items():
+                    bullet_lines.append(f"- {sub_key}: {sub_val}")
+            else:
+                bullet_lines.append(f"- {key}: {value}")
+
+        context_block = "\nUser Facts:\n" + "\n".join(bullet_lines) + "\n"
+
+    return (
+        f"{template}\n"
+        f"{context_block}\n"
+        f"User Question:\n{user_message}"
+    )
+
+
+# -------------------------------------------------------
+# DETERMINISTIC RESPONSES (No LLM)
+# -------------------------------------------------------
 
 def format_deterministic(intent: str, data: dict) -> str:
 
-    if intent == "level_completion":
+    # -----------------------------------------
+    # Level Specific & Practice Recommendation
+    # -----------------------------------------
+    if intent in ["level_specific", "practice_recommendation"]:
+
         return (
-            f"You have completed {data.get('completion_percent')}% "
-            f"of Level {data.get('level_id')}.\n"
-            f"Words attempted: {data.get('attempted_words')} "
-            f"out of {data.get('total_words')}."
+            f"Level: {data.get('level_name')}\n"
+            f"Total words: {data.get('total_words')}\n"
+            f"Mastered: {data.get('mastered_words')}\n"
+            f"Attempted: {data.get('attempted_words')}\n"
+            f"Remaining: {data.get('remaining_words')}\n"
+            f"Completion: {data.get('completion_percent')}%\n"
+            f"Recommendation: {data.get('recommendation')}"
+        )
+
+    # -----------------------------------------
+    # Performance Summary
+    # -----------------------------------------
+    if intent == "performance_summary":
+
+        return (
+            f"Mock Average: {data.get('mock_average')}\n"
+            f"Dynamic Average: {data.get('dynamic_average')}\n"
+            f"Similarity Average: {data.get('similarity_average')}"
+        )
+
+    # -----------------------------------------
+    # Fallback (Should Rarely Trigger)
+    # -----------------------------------------
+    return "You're progressing steadily. Keep going."
+
+    if intent == "level_completion":
+        total = data.get("total_words", 0)
+        attempted = data.get("attempted_words", 0)
+        mastered = data.get("mastered_words", 0)
+        percent = data.get("completion_percent", 0)
+
+        remaining = total - mastered if total else 0
+
+        return (
+            f"You have completed {percent}% of this level.\n"
+            f"Words mastered: {mastered} out of {total}.\n"
+            f"Words attempted: {attempted}.\n"
+            f"Remaining words: {remaining}."
         )
 
     if intent == "performance_summary":
+        mock_avg = data.get("mock_average")
+        dynamic_avg = data.get("dynamic_average")
+        similarity_avg = data.get("similarity_average")
+
         return (
-            f"Mock Average: {data.get('mock_average')}\n"
-            f"Dynamic Average: {data.get('dynamic_average')}."
+            f"Mock Average: {mock_avg}\n"
+            f"Dynamic Average: {dynamic_avg}\n"
+            f"Similarity Average: {similarity_avg}"
         )
 
     return "You're progressing steadily. Keep going."
