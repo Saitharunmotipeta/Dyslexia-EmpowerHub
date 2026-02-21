@@ -16,8 +16,6 @@ from .levels import (
     get_words_for_level_handler
 )
 from app.learning.routes.words import update_word_status_handler
-from app.learning.routes.tts import tts_word_handler
-from app.learning.routes.learning_automation import learning_automation_handler
 
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
@@ -59,50 +57,4 @@ def update_word_status_endpoint(
         word_id=word_id,
         is_mastered=is_mastered,
         mastery_score=mastery_score,
-    )
-
-
-# TTS
-@router.get("/tts/{word_id}")
-def tts_word(
-    word_id: int,
-    pace_mode: str = Query(
-        ...,
-        description="slow | medium | fast | custom"
-    ),
-    pace_value: int | None = Query(
-        None,
-        ge=30,
-        le=200,
-        description="Required only when pace_mode=custom"
-    ),
-    db: Session = Depends(get_db),
-):
-    return tts_word_handler(
-        db=db,
-        word_id=word_id,
-        pace_mode=pace_mode,
-        pace_value=pace_value,
-    )
-
-
-@router.post(
-    "/learn-auto",
-    summary="Learning Automation Endpoint (Browser STT)",
-)
-async def learn_auto(
-    level_id: int,
-    word_id: int,
-    spoken: str = Body(..., embed=True),
-    pace_mode: str = Query("medium", regex="^(slow|medium|fast|custom)$"),
-    pace_value: int | None = Query(None, ge=40, le=200),
-    user_id: int = Depends(get_current_user_id),
-):
-    return await learning_automation_handler(
-        level_id=level_id,
-        word_id=word_id,
-        user_id=user_id,
-        pace_mode=pace_mode,
-        pace_value=pace_value,
-        spoken=spoken,
     )

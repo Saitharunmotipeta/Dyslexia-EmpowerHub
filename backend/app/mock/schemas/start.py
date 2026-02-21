@@ -8,6 +8,6 @@ class MockWord(BaseModel):
 
 
 class MockStartResponse(BaseModel):
-    attempt_id: int
+    public_attempt_id: int
     words: List[MockWord]
     message: str

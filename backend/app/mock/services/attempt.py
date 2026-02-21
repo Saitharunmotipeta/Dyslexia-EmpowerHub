@@ -64,7 +64,7 @@ def start_mock_attempt(
     db.refresh(attempt)
 
     return {
-        "attempt_id": attempt.public_attempt_id,
+        "public_attempt_id": attempt.public_attempt_id,
         "words": words,
         "message": "Mock test started. Take your time — you’ve got this 🌱"
     }
@@ -78,7 +78,7 @@ def finalize_mock_attempt(
     public_attempt_id: str
 ):
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.public_attempt_id == str(public_attempt_id),
+        MockAttempt.public_attempt_id == public_attempt_id,
         MockAttempt.user_id == user_id
     ).first()
 
@@ -167,7 +167,7 @@ def finalize_mock_attempt(
     db.commit()
 
     return {
-        "attempt_id": attempt.public_attempt_id,  # ✅ public-safe
+        "public_attempt_id": attempt.public_attempt_id,  # ✅ public-safe
         "score": total_score,
         "verdict": verdict,
         "words": words,
