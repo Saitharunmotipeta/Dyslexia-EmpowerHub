@@ -2,10 +2,10 @@ from pydantic import BaseModel
 from typing import List, Dict
 
 class MockResultRequest(BaseModel):
-    attempt_id: int
+    public_attempt_id: str
 
 class MockResultResponse(BaseModel):
-    attempt_id: int
+    public_attempt_id: str
     score: float
     verdict: str
     words: List[Dict]

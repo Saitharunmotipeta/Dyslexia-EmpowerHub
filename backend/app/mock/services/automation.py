@@ -83,7 +83,7 @@ def start_mock_automation(
 def submit_mock_word_automation(
     db: Session,
     user_id: int,
-    public_attempt_id: int,
+    public_attempt_id: str,
     word_id: int,
     audio,
 ):
@@ -94,7 +94,7 @@ def submit_mock_word_automation(
     attempt = (
         db.query(MockAttempt)
         .filter(
-            MockAttempt.public_attempt_id == str(public_attempt_id),
+            MockAttempt.public_attempt_id == public_attempt_id,
             MockAttempt.user_id == user_id
         )
         .first()
@@ -127,7 +127,7 @@ def submit_mock_word_automation(
 def complete_mock_automation(
     db: Session,
     user_id: int,
-    public_attempt_id: int,
+    public_attempt_id: str,
 ):
     """
     Finalize automated mock.
@@ -136,7 +136,7 @@ def complete_mock_automation(
     attempt = (
         db.query(MockAttempt)
         .filter(
-            MockAttempt.public_attempt_id == str(public_attempt_id),
+            MockAttempt.public_attempt_id == public_attempt_id,
             MockAttempt.user_id == user_id
         )
         .first()

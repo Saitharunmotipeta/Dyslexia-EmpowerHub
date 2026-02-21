@@ -23,7 +23,5 @@ def start_mock(
             user_id=user_id,
             level_id=level_id
         )
-    # except PermissionError as e:
-    #     raise HTTPException(status_code=403, detail=str(e))
-    finally:
-        print("Mock attempt started or failed.")
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
