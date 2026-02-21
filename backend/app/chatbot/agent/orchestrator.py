@@ -15,6 +15,7 @@ from app.chatbot.analysis.level_progress_engine import run as level_progress_run
 from app.chatbot.analysis.mock_engine import run as mock_run
 from app.chatbot.analysis.dynamic_engine import run as dynamic_run
 from app.chatbot.analysis.last_word_engine import run as last_word_run
+from app.chatbot.analysis.level_word_lookup_engine import run as level_word_lookup_run
 
 
 ENGINE_MAP = {
@@ -25,6 +26,7 @@ ENGINE_MAP = {
     "mock_engine": mock_run,
     "dynamic_engine": dynamic_run,
     "last_word_engine": last_word_run,
+    "level_word_lookup_engine": level_word_lookup_run,
 }
 
 
@@ -87,6 +89,13 @@ def handle_chat(message: str, user_id: int, db: Session):
                 structured_data = engine_function(
                     user_id=user_id,
                     db=db,
+                )
+
+            elif intent == "level_word_lookup":
+                structured_data = engine_function(
+                    user_id=user_id,
+                    db=db,
+                    message=message,
                 )
 
             else:

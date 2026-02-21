@@ -18,6 +18,10 @@ def run(user_id: int, db: Session, level_order: int | None = None):
             .filter(Level.order == level_order)
             .first()
         )
+        if level_order is None:
+            return {
+        "error": "level_not_specified"
+    }
     else:
         # fallback: use most recently practiced level
         recent_word = (
@@ -28,12 +32,15 @@ def run(user_id: int, db: Session, level_order: int | None = None):
         )
 
         if not recent_word:
-            return None
+            return {
+                "error": "no_recent_word_found"
+            }
 
         level = recent_word.word.level
 
     if not level:
-        return None
+        return {
+            "error": "level_not_found"}
 
     # -------------------------------------------------
     # 2️⃣ Compute Level Statistics

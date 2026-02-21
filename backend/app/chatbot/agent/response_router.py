@@ -73,6 +73,12 @@ def build_prompt(template: str, structured_data: dict | None, user_message: str)
 
 def format_deterministic(intent: str, data: dict) -> str:
 
+    if data.get("error") == "level_not_specified":
+        return "Please specify the level number (1, 2, or 3)."
+    if data.get("error") == "no_recent_word_found":
+        return "I couldn't find any recent practice activity to determine your current level."
+    if data.get("error") == "level_not_found":
+        return "I couldn't find the specified level. Please check the level number and try again."
     # -----------------------------------------
     # Level Specific & Practice Recommendation
     # -----------------------------------------

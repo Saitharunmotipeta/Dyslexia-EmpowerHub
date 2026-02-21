@@ -40,22 +40,29 @@ def detect_intent(message: str) -> str:
         "last session",
     ]):
         return "resume_progress"
+    
+    # -----------------------------
+    # Level Word Lookup
+    # -----------------------------
+    if (
+        "level" in msg
+        and any(k in msg for k in ["1st", "2nd", "3rd", "4th", "5th"])
+    ):
+        return "level_word_lookup"
 
     # -----------------------------
     # 3️⃣ Level Specific Queries
     # -----------------------------
-    if (
-        "level" in msg
-        and any(k in msg for k in [
-            "how many",
-            "remaining",
-            "not complete",
-            "left",
-            "completed",
-            "completion",
-            "percent",
-        ])
-    ):
+    if any(k in msg for k in [
+        "how many words",
+        "words left",
+        "words remaining",
+        "how many left",
+        "remaining words",
+        "completion",
+        "percent",
+    ]):
+
         return "level_specific"
 
     # -----------------------------

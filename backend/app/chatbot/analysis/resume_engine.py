@@ -67,7 +67,9 @@ def run(user_id: int, db: Session) -> dict | None:
         candidates.append(("dynamic", normalize(last_dynamic.created_at), last_dynamic))
 
     if not candidates:
-        return None
+     return {
+        "message": "No previous activity found.",
+    }
 
     latest = max(candidates, key=lambda x: x[1])
 

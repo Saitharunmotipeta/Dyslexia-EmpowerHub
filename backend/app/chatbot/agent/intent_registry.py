@@ -85,4 +85,10 @@ INTENT_MAP = {
         "prompt": "general.txt",
         "llm_required": True,
     },
+
+    "level_word_lookup": {
+        "engine": "level_word_lookup_engine",
+        "prompt": "word_lookup.txt",
+        "llm_required": True,
+    },
 }
