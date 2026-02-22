@@ -6,25 +6,7 @@ from app.learning.models.level_word import LevelWord
 from app.learning.models.word import Word
 from app.learning.models.level import Level
 from app.mock.models.attempt import MockAttempt
-from app.dynamic.models.dynamic_attempt import DynamicAttempt
-
-
-MOCK_THRESHOLD = 60
-SIMILARITY_THRESHOLD = 60
-
-
-def normalize(dt):
-    if dt is None:
-        return None
-    if dt.tzinfo is not None:
-        return dt.astimezone(timezone.utc).replace(tzinfo=None)
-    return dt
-
-
-def format_timestamp(dt):
-    if not dt:
-        return None
-    return dt.strftime("%B %d, %Y at %I:%M %p")
+from app.dynamic.models.dynamic_attempt import DynamicAttempt  # adjust path if needed
 
 
 def run(user_id: int, db: Session) -> dict | None:
