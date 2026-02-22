@@ -2,13 +2,13 @@ from pydantic import BaseModel
 
 
 class MockWordRequest(BaseModel):
-    attempt_id: int
+    public_attempt_id: str
     word_id: int
     spoken: str
 
 class MockWordResponse(BaseModel):
     word_id: int
-    attempt_id: int
+    public_attempt_id: str
     spoken: str
     score: float
     verdict: str

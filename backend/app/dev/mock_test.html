@@ -195,7 +195,6 @@ async function startMock() {
 
   AUTH = { Authorization: "Bearer " + token };
 
-  // ✅ CALL THE CORRECT ENDPOINT
   const res = await fetch(`${API}/mock/start?level_id=${levelId}`, {
     method: "POST",
     headers: {
@@ -204,30 +203,33 @@ async function startMock() {
   });
 
   if (!res.ok) {
-    alert("Failed to start mock");
+    const err = await res.json().catch(() => ({}));
+    alert(err.detail || "Failed to start mock");
     return;
   }
 
   const data = await res.json();
 
-  // ✅ STORE SESSION DATA
-  mockAttemptId = data.attempt_id;
+  console.log("START RESPONSE:", data);
+
+  mockAttemptId = String(data.public_attempt_id);  // must exist
   words = data.words;
   currentIndex = 0;
 
-  // ✅ DISPLAY ATTEMPT ID
-  document.getElementById("attemptId").innerText = mockAttemptId;
-  document.getElementById("timer").innerText =
-    `🆔 Mock Attempt ID: ${mockAttemptId}`;
+  if (!mockAttemptId) {
+    alert("Session ID missing from server response");
+    console.error("❌ public_attempt_id not returned!");
+    return;
+  }
 
-  // ✅ UI TRANSITION
+  document.getElementById("attemptId").innerText = mockAttemptId;
+
   startBox.style.display = "none";
   mockBox.style.display = "block";
 
   startTimer();
-  loadWord(); // word is handled HERE, safely
+  loadWord();
 }
-
 /* ================= LOAD WORD ================= */
 function loadWord() {
   if (currentIndex >= words.length) {
@@ -291,7 +293,7 @@ async function submitWord() {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        attempt_id: mockAttemptId,
+        public_attempt_id: mockAttemptId,
         word_id: word.id,
         spoken: spokenText
       })
@@ -320,7 +322,7 @@ async function finishMock() {
       Authorization: AUTH.Authorization,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ attempt_id: mockAttemptId })
+    body: JSON.stringify({ public_attempt_id: mockAttemptId })
   });
 
 

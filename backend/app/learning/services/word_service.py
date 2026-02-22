@@ -18,7 +18,7 @@ def get_words_for_level(db: Session, user_id: int, level_id: int):
         for lw in db.query(LevelWord)
         .filter(
             LevelWord.user_id == user_id,
-            LevelWord.level_id == level_id,
+            # LevelWord.level_id == level_id,
             LevelWord.word_id.in_(word_ids),
         )
         .all()
@@ -44,7 +44,7 @@ def get_words_for_level(db: Session, user_id: int, level_id: int):
                 "phonetics": w.phonetics,
                 "syllables": w.syllables,
                 "difficulty": w.difficulty,
-                "image_url": w.image_url,
+                # "image_url": w.image_url,
                 "is_mastered": is_mastered,
                 "mastery_score": mastery_score,
                 "attempts": attempts,
