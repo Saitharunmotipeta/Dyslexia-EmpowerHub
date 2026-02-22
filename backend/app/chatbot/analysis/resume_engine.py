@@ -3,7 +3,7 @@ from sqlalchemy import desc
 
 from app.learning.models.level_word import LevelWord
 from app.mock.models.attempt import MockAttempt
-from app.dynamic.models.attempt import DynamicAttempt  # adjust path if needed
+from app.dynamic.models.dynamic_attempt import DynamicAttempt  # adjust path if needed
 
 
 def run(user_id: int, db: Session) -> dict | None:
