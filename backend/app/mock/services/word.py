@@ -17,7 +17,7 @@ from app.learning.models.word import Word
 def process_mock_word(
     db: Session,
     user_id: int,
-    public_attempt_id: int,   # public attempt_code
+    public_attempt_id: str,   # public attempt_code
     word_id: int,
     spoken: str,       # ✅ FROM BROWSER
 ):
@@ -30,7 +30,7 @@ def process_mock_word(
 
     # 1️⃣ Fetch attempt
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.public_attempt_id == str(public_attempt_id),
+        MockAttempt.public_attempt_id == public_attempt_id,
         MockAttempt.user_id == user_id
     ).first()
 
@@ -107,6 +107,8 @@ def process_mock_word(
     return {
         "word_id": word_id,
         "score": evaluation["score"],
+        "public_attempt_id": public_attempt_id,
+        "spoken": spoken,
         "verdict": evaluation["verdict"],
         "recognized_text": spoken,
         "message": "Nice effort! Let’s keep moving 🌱",

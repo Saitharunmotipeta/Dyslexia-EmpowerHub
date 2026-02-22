@@ -25,4 +25,3 @@ class RecommendationOut(BaseModel):
     confidence: float    # 0–1 likelihood
     next_steps: List[str]
     metrics_used: Optional[dict] = None
-

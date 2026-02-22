@@ -23,7 +23,7 @@ def submit_mock_word(
     result = process_mock_word(
         db=db,
         user_id=user_id,
-        attempt_id=payload.attempt_id,
+        public_attempt_id=payload.public_attempt_id,
         word_id=payload.word_id,
         spoken=payload.spoken
     )
@@ -31,7 +31,7 @@ def submit_mock_word(
     # Align response with schema
     return {
         "word_id": payload.word_id,
-        "attempt_id": payload.attempt_id,
+        "public_attempt_id": payload.public_attempt_id,
         "spoken": payload.spoken,
         "score": result["score"],
         "verdict": result["verdict"],
