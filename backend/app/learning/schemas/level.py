@@ -10,6 +10,7 @@ class LevelOut(BaseModel):
     total_words: int
     mastered_words: int
     mastered_percentage: float
+    is_unlocked: bool
 
     class Config:
         orm_mode = True

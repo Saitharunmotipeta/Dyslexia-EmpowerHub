@@ -57,11 +57,10 @@ def login(
     )
 
     if not result:
-        # raise HTTPException(
-        #     status_code=status.HTTP_401_UNAUTHORIZED,
-        #     detail="Invalid email or password",
-        # )
-        print("1234....lets goooo")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
 
     token, user = result
 
@@ -72,7 +71,6 @@ def login(
         "streak_days": user.streak_days,
         "total_login_days": user.total_login_days,
     }
-
 
 # ─────────────────────────────────────────────
 # PROFILE

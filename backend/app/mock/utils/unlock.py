@@ -2,42 +2,42 @@ from sqlalchemy.orm import Session
 from app.learning.models.level_word import LevelWord
 from app.learning.models.level import Level
 from app.mock.models.attempt import MockAttempt
+from app.learning.models.word import Word
 import random
-
-
-# -------------------------------------------------
-# PRACTICE-BASED UNLOCK (OLD LOGIC, STILL VALID)
-# -------------------------------------------------
+import string
 
 def is_mock_unlocked(
     db: Session,
     user_id: int,
-    # level_id: int
+    level_id: int,
 ) -> bool:
     """
     Unlock mock based on PRACTICE mastery.
-    Rule: 70% of level words mastered.
+    Rule: 70% of words in THIS level mastered.
     """
 
-    total = db.query(LevelWord).filter(
-        LevelWord.user_id == user_id,
-        # LevelWord.level_id == level_id
-    ).count()
+    # 🔹 Get all words belonging to this level
+    words = db.query(Word).filter(
+        Word.level_id == level_id
+    ).all()
 
-    if total == 0:
+    if not words:
         return False
 
-    mastered = db.query(LevelWord).filter(
+    word_ids = [w.id for w in words]
+    total_words = len(word_ids)
+
+    # 🔹 Count mastered words for this user in this level
+    mastered_count = db.query(LevelWord).filter(
         LevelWord.user_id == user_id,
-        # LevelWord.level_id == level_id,
+        LevelWord.word_id.in_(word_ids),
         LevelWord.is_mastered.is_(True)
     ).count()
 
-    return (mastered / total) >= 0.7
-
+    return (mastered_count / total_words) >= 0.7
 
 # -------------------------------------------------
-# MOCK-BASED NEXT LEVEL UNLOCK (NEW)
+# MOCK-BASED NEXT LEVEL UNLOCK
 # -------------------------------------------------
 
 def can_unlock_next_level(
@@ -51,7 +51,7 @@ def can_unlock_next_level(
     """
 
     attempt = db.query(MockAttempt).filter(
-        MockAttempt.public_attempt_id == str(public_attempt_id),
+        MockAttempt.public_attempt_id == public_attempt_id,
         MockAttempt.user_id == user_id
     ).first()
 
@@ -71,7 +71,6 @@ def can_unlock_next_level(
             "reason": "Level information not found"
         }
 
-    # 🎯 Thresholds (easy to tune later)
     THRESHOLDS = {
         "easy": 80,
         "medium": 70,
@@ -80,11 +79,10 @@ def can_unlock_next_level(
 
     required_score = THRESHOLDS.get(
         level.difficulty.lower(),
-        70  # safe default
+        70
     )
 
     passed = attempt.total_score >= required_score
-    print("🔓 UNLOCK CHECK:", public_attempt_id, "Score:", attempt.total_score, "Required:", required_score)
 
     return {
         "can_proceed": passed,
@@ -93,18 +91,19 @@ def can_unlock_next_level(
         "message": (
             "Great job! You’re ready for the next level 🚀"
             if passed
-            else
-            f"Almost there! Score {required_score}% to unlock the next level 💪"
+            else f"Score {required_score}% to unlock the next level 💪"
         )
     }
 
 
 # -------------------------------------------------
-# ATTEMPT CODE GENERATOR
+# ALPHANUMERIC ATTEMPT CODE GENERATOR
 # -------------------------------------------------
 
-def generate_attempt_code() -> int:
+def generate_attempt_code(length: int = 8) -> str:
     """
-    Public-safe 6 digit attempt code
+    Public-safe alphanumeric attempt code.
+    Example: A7X9Q2LP
     """
-    return random.randint(100000, 999999)
+    characters = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(characters, k=length))
