@@ -20,6 +20,7 @@ def start_mock_attempt(
     unlocked = is_mock_unlocked(
         db=db,
         user_id=user_id,
+        level_id=level_id,
     )
 
     if not unlocked:
@@ -48,7 +49,7 @@ def start_mock_attempt(
     while db.query(MockAttempt).filter(
         MockAttempt.public_attempt_id == public_attempt_id
     ).first():
-        public_attempt_id = str(generate_attempt_code())
+        public_attempt_id = generate_attempt_code()
 
     # ✅ Correct model alignment
     attempt = MockAttempt(

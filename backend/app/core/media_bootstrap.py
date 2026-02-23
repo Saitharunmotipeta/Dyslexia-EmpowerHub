@@ -1,19 +1,20 @@
-# app/core/media_bootstrap.py
+from app.core.paths import STT_ENGINE, TTS_ENGINE, IS_DEV
 
-"""
-Media bootstrap (BROWSER-FIRST)
 
-✔ STT handled in browser (Web Speech API)
-✔ TTS handled via browser OR runtime TTS
-✔ No ffmpeg dependency
-✔ Safe for free-tier deployment
-"""
+def initialize_media_layer():
+    """
+    Initializes media configuration.
+    Safe to extend later when Deepgram is integrated.
+    """
 
-import os
-from dotenv import load_dotenv
+    if IS_DEV:
+        print("🔧 Media Layer Bootstrapping...")
+        print(f"🗣️ STT Engine  → {STT_ENGINE}")
+        print(f"🔊 TTS Engine  → {TTS_ENGINE}")
 
-load_dotenv()
+    # Future: Validate Deepgram config
+    if STT_ENGINE == "deepgram":
+        print("🌐 Deepgram STT mode enabled")
 
-print("🔊 TTS_ENGINE = browser")
-print("🗣️ STT_ENGINE = browser")
-# print("⚠️ FFmpeg is NOT required (by design)")
+    if TTS_ENGINE == "external":
+        print("🌐 External TTS mode enabled")

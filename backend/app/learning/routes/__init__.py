@@ -1,25 +1,16 @@
 # app/learning/routes/__init__.py
-from fastapi import APIRouter, Depends, Query, Body
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.orm import Session
-from fastapi import UploadFile, File
 from typing import List
-
-
 from app.database.connection import SessionLocal
 from app.auth.dependencies import get_current_user_id
 from app.learning.schemas.level import LevelOut
 from app.learning.schemas.word import WordStatusOut
-# from app.learning.routes.learning_automation import router as automation_router
-
-from .levels import (
-    get_levels_handler,
-    get_words_for_level_handler
-)
+from .levels import ( get_levels_handler, get_words_for_level_handler)
 from app.learning.routes.words import update_word_status_handler
 
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
-
 
 def get_db():
     db = SessionLocal()
@@ -29,20 +20,21 @@ def get_db():
         db.close()
 
 
-# LEVEL LIST
 router.get("/levels", response_model=List[LevelOut])(
-    lambda db=Depends(get_db): get_levels_handler(db)
+    lambda db=Depends(get_db),
+           user_id=Depends(get_current_user_id):
+        get_levels_handler(db, user_id)
 )
 
 
-# WORD LIST PER LEVEL
 router.get("/levels/{level_id}/words", response_model=List[WordStatusOut])(
-    lambda level_id, db=Depends(get_db), user_id=Depends(get_current_user_id):
+    lambda level_id,
+           db=Depends(get_db),
+           user_id=Depends(get_current_user_id):
         get_words_for_level_handler(level_id, db, user_id)
 )
 
 
-# UPDATE STATUS
 @router.post("/words/{word_id}/update_status")
 def update_word_status_endpoint(
     word_id: int,
