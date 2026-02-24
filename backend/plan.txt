@@ -382,3 +382,8 @@ frontend/
 ├── tsconfig.json
 ├── package.json
 └── README.md
+
+Docker commands:
+
+docker build -t dyslexia-backend:v1 .
+docker run -d -p 8000:8000 --env-file .env --name dyslexia-api dyslexia-backend   

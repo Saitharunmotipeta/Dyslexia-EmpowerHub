@@ -1,29 +1,19 @@
-# Git
 .git
 .gitignore
-
-# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Virtual environments
-.venv
-env
-venv
-
-# Local & dev artifacts
+.venv/
+env/
+venv/
 temp/
 runtime_cache/
 tests/
 logs/
 *.log
-
-# OS files
+.env
+.env.*
+node_modules/
 .DS_Store
 Thumbs.db
-
-# Docker
-Dockerfile
-docker-compose.yml
