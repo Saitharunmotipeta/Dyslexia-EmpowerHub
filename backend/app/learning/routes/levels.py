@@ -55,13 +55,33 @@ def get_levels_handler(db: Session, user_id: int) -> List[LevelOut]:
                 if next_level:
                     unlocked_levels.add(next_level.id)
 
-    # Build response
     for level in levels:
         words = db.query(Word).filter(
             Word.level_id == level.id
         ).all()
 
         total = len(words)
+
+        if total == 0:
+            mastered_words = 0
+            mastered_percentage = 0.0
+        else:
+            word_ids = [w.id for w in words]
+
+            mastered_words = (
+                db.query(LevelWord)
+                .filter(
+                    LevelWord.user_id == user_id,
+                    LevelWord.word_id.in_(word_ids),
+                    LevelWord.is_mastered.is_(True)
+                )
+                .count()
+            )
+
+            mastered_percentage = round(
+                (mastered_words / total) * 100,
+                2
+            )
 
         result.append(
             LevelOut(
@@ -71,12 +91,11 @@ def get_levels_handler(db: Session, user_id: int) -> List[LevelOut]:
                 difficulty=level.difficulty or "",
                 order=level.order or 0,
                 total_words=total,
-                mastered_words=0,
-                mastered_percentage=0,
+                mastered_words=mastered_words,
+                mastered_percentage=mastered_percentage,
                 is_unlocked=(level.id in unlocked_levels)
             )
         )
-
     return result
 
 

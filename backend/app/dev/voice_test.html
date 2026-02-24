@@ -137,6 +137,18 @@ const STATIC = "https://dyslexia-static-assets.onrender.com";
 let AUTH = {};
 let spokenText = "";
 
+/* =========================
+   🔥 CACHE LAYER
+========================= */
+
+let levelCache = null;        // stores levels
+let wordsCache = {};          // stores words per level
+
+function resetCache() {
+  levelCache = null;
+  wordsCache = {};
+}
+
 /* ---------- Helpers ---------- */
 
 function normalizeSpoken(text) {
@@ -145,7 +157,6 @@ function normalizeSpoken(text) {
   text = text.toLowerCase().replace(/[^a-z\s]/g, "").trim();
   const parts = text.split(/\s+/);
 
-  // letter-by-letter: "c a t" → "cat"
   if (parts.length > 1 && parts.every(p => p.length === 1)) {
     return parts.join("");
   }
@@ -157,7 +168,9 @@ function clearUI() {
   error.innerText = "";
 }
 
-/* ---------- Backend ---------- */
+/* =========================
+   🚀 BACKEND
+========================= */
 
 async function connectBackend() {
   clearUI();
@@ -165,18 +178,36 @@ async function connectBackend() {
   if (!token) return error.innerText = "JWT token required";
 
   AUTH = { Authorization: "Bearer " + token };
+
+  resetCache(); // 🔥 important
+
   await loadLevels();
 }
 
 async function loadLevels() {
+
+  // 🔥 Use cache if exists
+  if (levelCache) {
+    renderLevels(levelCache);
+    return;
+  }
+
   const res = await fetch(`${API}/learning/levels`, { headers: AUTH });
   const levels = await res.json();
+
+  levelCache = levels; // cache it
+
+  renderLevels(levels);
+}
+
+function renderLevels(levels) {
   levelSelect.innerHTML = "";
 
   levels.forEach(l => {
     const o = document.createElement("option");
     o.value = l.id;
-    o.textContent = `Level ${l.id} – ${l.name}`;
+    o.textContent =
+      `Level ${l.id} – ${l.name} (${l.mastered_percentage || 0}% mastered)`;
     levelSelect.appendChild(o);
   });
 
@@ -184,12 +215,33 @@ async function loadLevels() {
 }
 
 async function loadWords() {
+  const levelId = levelSelect.value;
+
+  // 🔥 If cached, reuse
+  if (wordsCache[levelId]) {
+    renderWords(wordsCache[levelId]);
+    return;
+  }
+
   const res = await fetch(
-    `${API}/learning/levels/${levelSelect.value}/words`,
+    `${API}/learning/levels/${levelId}/words`,
     { headers: AUTH }
   );
+
+  if (!res.ok) {
+    const err = await res.json();
+    error.innerText = err.detail?.message || err.detail;
+    return;
+  }
+
   const words = await res.json();
 
+  wordsCache[levelId] = words; // cache per level
+
+  renderWords(words);
+}
+
+function renderWords(words) {
   wordSelect.innerHTML = "";
   wordImage.style.display = "none";
 
@@ -209,7 +261,9 @@ function onWordSelected() {
   wordImage.style.display = "block";
 }
 
-/* ---------- TTS ---------- */
+/* =========================
+   🔊 TTS
+========================= */
 
 function playTTS() {
   const word = wordSelect.selectedOptions[0]?.text;
@@ -226,7 +280,9 @@ function playTTS() {
   speechSynthesis.speak(u);
 }
 
-/* ---------- STT (IMPROVED, DYSLEXIA-FIRST) ---------- */
+/* =========================
+   🎤 STT
+========================= */
 
 function startSTT() {
   clearUI();
@@ -235,13 +291,12 @@ function startSTT() {
     window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (!SpeechRecognition) {
-    error.innerText = "Speech recognition not supported in this browser.";
+    error.innerText = "Speech recognition not supported.";
     return;
   }
 
   const expectedWord = wordSelect.selectedOptions[0]?.text || "";
-  const isShortWord = expectedWord.length <= 4;
-  const listenTime = isShortWord ? 3500 : 2500;
+  const listenTime = expectedWord.length <= 4 ? 3500 : 2500;
 
   const rec = new SpeechRecognition();
   rec.lang = "en-US";
@@ -249,14 +304,14 @@ function startSTT() {
   rec.interimResults = false;
   rec.maxAlternatives = 3;
 
-  output.innerText = "🎤 Listening… take your time.";
+  output.innerText = "🎤 Listening…";
 
   rec.onresult = e => {
     const raw = e.results[0][0].transcript;
     const word = normalizeSpoken(raw);
 
     if (!word) {
-      output.innerText = "That’s okay — try again 🌱";
+      output.innerText = "Try again 🌱";
       return;
     }
 
@@ -264,56 +319,58 @@ function startSTT() {
     output.innerText = `👂 I heard: "${spokenText}"`;
   };
 
-  rec.onerror = () => {
-    output.innerText = "No rush — try again when ready 🌱";
-  };
-
   rec.start();
   setTimeout(() => rec.stop(), listenTime);
 }
 
-/* ---------- Evaluation + Feedback ---------- */
+/* =========================
+   📊 EVALUATION
+========================= */
 
 async function evaluatePronunciation() {
   if (!spokenText) {
-    error.innerText = "Please speak the word first.";
+    error.innerText = "Please speak first.";
     return;
   }
 
   const expectedWord = wordSelect.selectedOptions[0].text;
+  const levelId = levelSelect.value;
+  const wordId = Number(wordSelect.value);
 
   const res = await fetch(`${API}/practice/evaluate`, {
     method: "POST",
     headers: { ...AUTH, "Content-Type": "application/json" },
     body: JSON.stringify({
-      word_id: Number(wordSelect.value),
+      word_id: wordId,
       recognized_text: spokenText
     })
   });
 
   const result = await res.json();
 
-  const payload = {
-    mode: "static",
-    content_type: "word",
-    text: expectedWord,
-    spoken: spokenText,
-    score: Number(result.score),
-    attempts: result.attempts || 1,
-    pace:
-      paceMode.value === "custom"
-        ? Number(customPace.value)
-        : paceMode.value === "slow"
-        ? 0.6
-        : paceMode.value === "fast"
-        ? 1.1
-        : 0.85
-  };
+  /* 🔥 UPDATE CACHE MASTERED STATUS */
+  if (wordsCache[levelId]) {
+    const w = wordsCache[levelId].find(x => x.id === wordId);
+    if (w) {
+      w.mastery_score = result.score;
+      w.is_mastered = result.score >= 80;
+    }
+  }
+
+  /* 🔥 OPTIONAL: refresh level mastery percentage */
+  levelCache = null; // force reload next time
 
   const agg = await fetch(`${API}/feedback/aggregate`, {
     method: "POST",
     headers: { ...AUTH, "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      mode: "static",
+      content_type: "word",
+      text: expectedWord,
+      spoken: spokenText,
+      score: Number(result.score),
+      attempts: result.attempts || 1
+    })
   }).then(r => r.json());
 
   output.innerText =
@@ -322,17 +379,7 @@ async function evaluatePronunciation() {
 📊 Score: ${result.score}%
 
 🧠 Verdict: ${agg.feedback?.verdict}
-💬 ${agg.feedback?.feedback?.join("\n")}
-
-➡️ ${agg.recommendation?.headline}
-📖 ${agg.recommendation?.explanation}
-
-📈 ${agg.trend?.message}
-🔍 ${agg.pattern?.message}`;
-}
-
-function toggleCustomPace() {
-  customPace.disabled = paceMode.value !== "custom";
+💬 ${agg.feedback?.feedback?.join("\n")}`;
 }
 </script>
 
