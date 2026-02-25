@@ -14,7 +14,9 @@ const getToken = (): string | null => {
   return localStorage.getItem("access_token");
 };
 
-type RequestInitWithBody = RequestInit & { body?: object };
+type RequestInitWithBody = Omit<RequestInit, "body"> & {
+  body?: unknown;
+};
 
 async function request<T>(
   path: string,
