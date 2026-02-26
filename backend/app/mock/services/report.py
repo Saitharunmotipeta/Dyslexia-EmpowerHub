@@ -1,21 +1,24 @@
 from io import BytesIO
-from datetime import datetime
-
+from pathlib import Path
 from sqlalchemy.orm import Session
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.colors import black, grey
+from fastapi import HTTPException
 
 from app.mock.models.attempt import MockAttempt
+from app.auth.models import User
+from app.mock.services.pdf_builder import build_mock_pdf
+from app.mock.utils.unlock import can_unlock_next_level
+
+
+TEMP_DIR = Path("temp/reports")
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def generate_mock_report_pdf(
     db: Session,
     user_id: int,
-    public_attempt_id: str  # attempt_code
+    public_attempt_id: str
 ) -> BytesIO:
 
-    # ✅ Fetch by public attempt_code
     attempt = db.query(MockAttempt).filter(
         MockAttempt.public_attempt_id == public_attempt_id
     ).first()
@@ -24,130 +27,39 @@ def generate_mock_report_pdf(
         raise FileNotFoundError("Mock attempt not found")
 
     if attempt.user_id != user_id:
-        raise PermissionError("You do not have access to this report")
+        raise PermissionError("Access denied")
 
     if attempt.status != "completed":
         raise ValueError("Mock test not completed yet")
 
-    buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
+    # Fetch username
+    user = db.query(User).filter(User.id == attempt.user_id).first()
+    username = user.name if user else "Unknown"
 
-    y = height - 50
-
-    # ---------- helpers ----------
-    def draw(text, size=11, bold=False, offset=18):
-        nonlocal y
-        pdf.setFont("Helvetica-Bold" if bold else "Helvetica", size)
-        pdf.setFillColor(black)
-        pdf.drawString(50, y, text)
-        y -= offset
-
-    def divider():
-        nonlocal y
-        pdf.setStrokeColor(grey)
-        pdf.line(50, y, width - 50, y)
-        y -= 15
-
-    # ================= HEADER =================
-    draw("Mock Test Performance Report", size=18, bold=True, offset=30)
-    draw(f"Attempt Code: {attempt.public_attempt_id}")
-    draw(f"Generated on: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
-    divider()
-
-    # ================= USER INFO =================
-    draw("Candidate Information", size=14, bold=True, offset=22)
-    draw(f"User ID: {attempt.user_id}")
-    draw(f"Level ID: {attempt.level_id}")
-    divider()
-
-    # ================= SUMMARY =================
-    draw("Performance Summary", size=14, bold=True, offset=22)
-    draw(f"Final Score: {attempt.total_score}%")
-    draw(f"Verdict: {attempt.verdict.replace('_', ' ').title()}")
-    draw(f"Confidence Index: {round((attempt.total_score or 0) / 100, 2)}")
-    divider()
-
-    results = attempt.results or {}
-    words = results.get("words", [])
-
-    total_words = len(words)
-    avg_score = attempt.total_score or 0
-    accuracy = round(avg_score / 100, 2)
-
-    # ================= LEVEL METRICS =================
-    draw("Level Metrics", size=14, bold=True, offset=22)
-    draw(f"Words Attempted: {total_words}")
-    draw(f"Average Accuracy: {accuracy}")
-    divider()
-
-    # ================= WORD BREAKDOWN =================
-    draw("Word-wise Evaluation", size=14, bold=True, offset=22)
-
-    for i, w in enumerate(words, start=1):
-        draw(f"{i}. Expected: {w.get('expected')} | Heard: {w.get('recognized')}")
-        draw(
-            f"   Score: {w.get('score')} | Verdict: {w.get('verdict')}",
-            size=10,
-            offset=14
-        )
-
-        feedback = w.get("feedback")
-        if feedback:
-            draw(f"   Feedback: {feedback}", size=10, offset=16)
-
-        y -= 4
-        if y < 120:
-            pdf.showPage()
-            y = height - 50
-
-    divider()
-
-    # ================= INSIGHTS =================
-    draw("Insights & Observations", size=14, bold=True, offset=22)
-
-    weak = [w for w in words if w.get("score", 0) < 65]
-    strong = [w for w in words if w.get("score", 0) >= 85]
-
-    if strong:
-        draw(f"Strengths: Strong pronunciation in {len(strong)} word(s)")
-    if weak:
-        draw(f"Improvement Areas: {len(weak)} word(s) need focused practice")
-    if not weak:
-        draw("Improvement Areas: None — excellent consistency!")
-
-    divider()
-
-    # ================= PROGRESSION STATUS =================
-    draw("Progression Status", size=14, bold=True, offset=22)
-
-    unlock_threshold = 70
-    unlocked = avg_score >= unlock_threshold
-
-    draw(f"Next Level Eligibility: {'UNLOCKED' if unlocked else 'LOCKED'}")
-    if not unlocked:
-        draw(f"Required Score to Unlock: {unlock_threshold}%")
-
-    divider()
-
-    # ================= CLOSING =================
-    draw("Final Note", size=14, bold=True, offset=22)
-    draw(
-        "Keep going. Learning is not about perfection — "
-        "it’s about consistency, courage, and showing up every day."
-    )
-    draw("You are on the right path. 🌱", offset=24)
-
-    pdf.setFont("Helvetica-Oblique", 9)
-    pdf.setFillColor(grey)
-    pdf.drawString(
-        50,
-        40,
-        "Generated by Dyslexia EmpowerHub • One sound at a time, one step forward"
+    # Build PDF
+        # ✅ Check unlock eligibility
+    unlock_info = can_unlock_next_level(
+        db=db,
+        user_id=user_id,
+        public_attempt_id=public_attempt_id
     )
 
-    pdf.showPage()
-    pdf.save()
-    buffer.seek(0)
+    next_level_unlocked = unlock_info.get("can_proceed", False)
+
+    # ✅ Build PDF with unlock info
+    buffer = build_mock_pdf(
+        attempt=attempt,
+        username=username,
+        next_level_unlocked=next_level_unlocked
+    )
+
+    # Save uniquely
+    filename = f"{public_attempt_id}.pdf"
+    file_path = TEMP_DIR / filename
+
+    with open(file_path, "wb") as f:
+        f.write(buffer.getvalue())
+
+    print(f"📄 PDF SAVED: {file_path}")
 
     return buffer

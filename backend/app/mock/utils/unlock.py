@@ -99,11 +99,11 @@ def can_unlock_next_level(
 # -------------------------------------------------
 # ALPHANUMERIC ATTEMPT CODE GENERATOR
 # -------------------------------------------------
-
-def generate_attempt_code(length: int = 8) -> str:
+def generate_attempt_code(prefix: str = "MOCK", length: int = 6) -> str:
     """
-    Public-safe alphanumeric attempt code.
-    Example: A7X9Q2LP
+    Professional public-safe attempt code.
+    Example: MOCK-8F3K2X
     """
     characters = string.ascii_uppercase + string.digits
-    return ''.join(random.choices(characters, k=length))
+    random_part = ''.join(random.choices(characters, k=length))
+    return f"{prefix}-{random_part}"
