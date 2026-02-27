@@ -1,4 +1,4 @@
-# 🧠 Dyslexia Learning Platform
+# 🧠 Dyslexia Learning Platform...
 
 A full-stack learning platform designed to support **dyslexic learners** through thoughtful speech practice, structured learning, and confidence-building assessments.
 
