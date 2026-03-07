@@ -24,7 +24,7 @@ export function Nav() {
           href="/"
           className="text-xl font-bold text-primary-600 hover:text-primary-700"
         >
-          Dyslexia EmpowerHub
+          Dyslexia Smart EmpowerHub 
         </Link>
 
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
