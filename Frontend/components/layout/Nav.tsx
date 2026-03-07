@@ -6,10 +6,10 @@ import { useAuth } from "@/context/AuthContext";
 
 const mainLinks = [
   { href: "/learning", label: "Learning" },
-  { href: "/practice", label: "Voice Test" },
-  { href: "/mock", label: "Mock Test" },
+  // { href: "/practice", label: "Voice Test" },
+  // { href: "/mock", label: "Mock Test" },
   { href: "/dynamic", label: "Dynamic Learning" },
-  { href: "/feedback", label: "Feedback" },
+  // { href: "/feedback", label: "Feedback" },
   { href: "/chatbot", label: "Chatbot" },
 ];
 
