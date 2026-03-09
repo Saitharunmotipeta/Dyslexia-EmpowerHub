@@ -49,7 +49,7 @@ MAX_PROMPT_CHAR_LENGTH = get_int(
 
 MODEL_NAME = os.getenv(
     "CHATBOT_MODEL_NAME",
-    "mistralai/mistral-7b-instruct",
+    "meta-llama/llama-3.1-8b-instruct",
 )
 
 TEMPERATURE = get_float(

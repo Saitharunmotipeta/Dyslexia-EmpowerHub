@@ -18,7 +18,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 # Cheap, fast, stable — perfect for meaning explanations
-MODEL_NAME = "mistralai/mistral-7b-instruct"
+MODEL_NAME = "meta-llama/llama-3.1-8b-instruct"
 
 if AI_MEANING_ENABLED and not OPENROUTER_API_KEY:
     raise RuntimeError("OPENROUTER_API_KEY not set but AI_MEANING_ENABLED=true")
