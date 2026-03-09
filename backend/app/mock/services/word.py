@@ -10,25 +10,15 @@ from app.mock.services.evaluate import evaluate_similarity
 from app.learning.models.word import Word
 
 
-# -------------------------------
-# PROCESS MOCK WORD (BROWSER STT)
-# -------------------------------
-
 def process_mock_word(
     db: Session,
     user_id: int,
-    public_attempt_id: str,   # public attempt_code
+    public_attempt_id: str,  
     word_id: int,
-    spoken: str,       # ✅ FROM BROWSER
+    spoken: str,      
 ):
     MAX_WORDS = 3
 
-    print("\n🧪 MOCK WORD PROCESS STARTED")
-    print(f"🆔 Attempt ID = {public_attempt_id}")
-    print(f"📝 Word ID    = {word_id}")
-    print(f"🗣️ Spoken     = {spoken}")
-
-    # 1️⃣ Fetch attempt
     attempt = db.query(MockAttempt).filter(
         MockAttempt.public_attempt_id == public_attempt_id,
         MockAttempt.user_id == user_id
@@ -40,15 +30,12 @@ def process_mock_word(
     if attempt.status == "completed":
         raise HTTPException(status_code=400, detail="Mock test already completed")
 
-    # 2️⃣ Fetch expected word
     word = db.get(Word, word_id)
     if not word:
         raise HTTPException(status_code=404, detail="Word not found")
 
     expected_text = word.text
-    print(f"📖 Expected = {expected_text}")
 
-    # 3️⃣ Prepare results
     results = attempt.results or {}
     words = results.get("words", [])
 
@@ -64,14 +51,10 @@ def process_mock_word(
             detail="All mock words already submitted"
         )
 
-    # 4️⃣ Evaluate pronunciation (NO STT HERE)
     evaluation = evaluate_similarity(
         expected=expected_text,
         spoken=spoken
     )
-
-    print("📊 Score =", evaluation["score"])
-    print("⚖️ Verdict =", evaluation["verdict"])
 
     word_result = {
         "word_id": word_id,
@@ -99,7 +82,7 @@ def process_mock_word(
     try:
         db.commit()
         db.refresh(attempt)
-        print("💾 Mock word saved")
+
     except Exception:
         db.rollback()
         raise
@@ -113,11 +96,6 @@ def process_mock_word(
         "recognized_text": spoken,
         "message": "Nice effort! Let’s keep moving 🌱",
     }
-
-
-# -------------------------------
-# FETCH RANDOM MOCK WORDS
-# -------------------------------
 
 def get_mock_words_for_level(
     db: Session,

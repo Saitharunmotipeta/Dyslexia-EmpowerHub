@@ -17,9 +17,6 @@ def submit_mock_word(
     validates payload via schema, and processes evaluation.
     """
 
-    print("\n📨 MOCK WORD SUBMISSION RECEIVED")
-    print("🗣️ Spoken =", payload.spoken)
-
     result = process_mock_word(
         db=db,
         user_id=user_id,
@@ -28,7 +25,6 @@ def submit_mock_word(
         spoken=payload.spoken
     )
 
-    # Align response with schema
     return {
         "word_id": payload.word_id,
         "public_attempt_id": payload.public_attempt_id,

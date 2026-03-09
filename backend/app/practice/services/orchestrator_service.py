@@ -33,51 +33,28 @@ async def run_practice_flow(
             detail="Spoken text cannot be empty",
         )
 
-    print("\n🚀 PRACTICE FLOW STARTED")
-    print(f"🆔 user_id = {user_id}")
-    print(f"🆔 word_id = {word_id}")
-    print(f"🗣 spoken = '{spoken}'")
-
     db: Session = SessionLocal()
 
     try:
-        # -------------------------
-        # 1️⃣ Fetch expected word
-        # -------------------------
-        print("\n📚 Fetching expected word...")
+
         word = db.query(Word).filter(Word.id == word_id).first()
         if not word:
             raise HTTPException(status_code=404, detail="Word not found")
 
         expected = word.text.lower()
-        print(f"📖 Expected = '{expected}'")
 
-        # -------------------------
-        # 2️⃣ Evaluate similarity
-        # -------------------------
-        print("\n📊 Evaluating pronunciation...")
         similarity_percent, verdict = evaluate_similarity(expected, spoken)
-
-        print(f"🧪 Similarity = {similarity_percent}%")
-        print(f"⚖️ Verdict = {verdict}")
-
-        # -------------------------
-        # 3️⃣ Update learning progress
-        # -------------------------
-        print("\n📈 Updating progress...")
 
         level_word = (
             db.query(LevelWord)
             .filter(
                 LevelWord.user_id == user_id,
                 LevelWord.word_id == word_id,
-                # LevelWord.level_id == level_id,
             )
             .first()
         )
 
         if not level_word:
-            print("🆕 Creating LevelWord record")
             level_word = LevelWord(
                 user_id=user_id,
                 word_id=word_id,
@@ -94,9 +71,8 @@ async def run_practice_flow(
 
         if similarity_percent >= 80:
             level_word.correct_attempts += 1
-            print("🎯 Correct attempt")
         else:
-            print("❌ Incorrect attempt")
+            pass
 
         level_word.mastery_score = (
             level_word.correct_attempts / level_word.attempts
@@ -129,16 +105,9 @@ async def run_practice_flow(
         pace=pace,
     )
 
-    print("\n💬 Generating feedback...")
     feedback = generate_feedback(feedback_input)
 
-    print("\n🧭 Generating recommendation...")
     recommendation = recommend_next_step(feedback_input)
-
-    # -------------------------
-    # 5️⃣ Final response
-    # -------------------------
-    print("\n🎉 PRACTICE FLOW COMPLETE\n")
 
     return {
         "word_id": word_id,

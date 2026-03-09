@@ -6,10 +6,6 @@ from sqlalchemy.orm import Session
 from app.dynamic.models.dynamic_attempt import DynamicAttempt
 
 
-# --------------------------------------------------
-# Generate Public Dynamic Attempt ID (DYN-XXXXXX)
-# --------------------------------------------------
-
 def generate_dynamic_attempt_id(db: Session) -> str:
     """
     Generate unique ID like DYN-AB12CD
@@ -30,10 +26,6 @@ def generate_dynamic_attempt_id(db: Session) -> str:
             return public_id
 
 
-# --------------------------------------------------
-# Create Dynamic Attempt
-# --------------------------------------------------
-
 def create_dynamic_attempt(
     db: Session,
     user_id: int,
@@ -43,8 +35,9 @@ def create_dynamic_attempt(
     score: float,
     pace: float | None
 ) -> DynamicAttempt:
-    
-    print(f"Creating dynamic attempt for user_id={user_id}, text='{text}', text_type='{text_type}', spoken='{spoken}', score={score}, pace={pace}")
+    """
+    Create a new dynamic attempt.
+    """
 
     public_id = generate_dynamic_attempt_id(db)
 

@@ -34,7 +34,5 @@ def get_db():
         db.close()
 
 
-# 🔥 IMPORTANT: Register all models
-print(DATABASE_URL)
 from app.auth.models import User
 from app.dynamic.models.dynamic_attempt import DynamicAttempt

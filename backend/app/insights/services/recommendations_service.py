@@ -9,8 +9,6 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
     pace = data.pace or 0.9
     content_type = data.content_type
 
-    print("🔍 Recommending next step for text=", data.text, "spoken=", data.spoken)
-
     metrics = {
         "score": score,
         "attempts": attempts,
@@ -20,9 +18,6 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
         "content_type": content_type
     }
 
-    # =========================
-    # 🎯 CASE 1 — Strong mastery
-    # =========================
     if score >= 85:
         rec = RecommendationOut(
             recommendation="advance_level",
@@ -37,12 +32,8 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
             metrics_used=metrics
         )
 
-        _log_metrics_and_result("advance_level", metrics, rec)
         return rec
 
-    # =========================
-    # ✨ CASE 2 — Good but needs polish
-    # =========================
     if score >= 70:
         rec = RecommendationOut(
             recommendation="slow_repeat",
@@ -57,12 +48,8 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
             metrics_used=metrics
         )
 
-        _log_metrics_and_result("slow_repeat", metrics, rec)
         return rec
 
-    # =========================
-    # 🧩 CASE 3 — Sentence difficulty
-    # =========================
     if content_type in ["phrase", "sentence"] and score < 60:
         rec = RecommendationOut(
             recommendation="segment_practice",
@@ -77,12 +64,8 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
             metrics_used=metrics
         )
 
-        _log_metrics_and_result("segment_practice", metrics, rec)
         return rec
 
-    # =========================
-    # 🔁 CASE 4 — Many attempts
-    # =========================
     if attempts >= 4:
         rec = RecommendationOut(
             recommendation="guided_break",
@@ -97,12 +80,8 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
             metrics_used=metrics
         )
 
-        _log_metrics_and_result("guided_break", metrics, rec)
         return rec
 
-    # =========================
-    # 🔁 DEFAULT
-    # =========================
     rec = RecommendationOut(
         recommendation="guided_retry",
         headline="Keep practicing — you're improving 💪",
@@ -116,24 +95,4 @@ def recommend_next_step(data: FeedbackIn) -> RecommendationOut:
         metrics_used=metrics
     )
 
-    _log_metrics_and_result("guided_retry", metrics, rec)
     return rec
-
-
-def _log_metrics_and_result(decision: str, metrics: dict, rec: RecommendationOut):
-
-    print("\n=============== 🤖 RECOMMENDATION ENGINE ===============")
-    print(f"📌 Decision     : {decision}")
-    print(f"📝 Text         : {metrics.get('text')}")
-    print(f"🗣️ Spoken       : {metrics.get('spoken')}")
-    print(f"📚 Type         : {metrics.get('content_type')}")
-    print(f"🎯 Score        : {metrics.get('score')}")
-    print(f"📊 Attempts     : {metrics.get('attempts')}")
-    print(f"⏩ Pace         : {metrics.get('pace')}")
-    print("---------------------------------------------------------")
-    print("📤 Recommendation:")
-    print(f"   🧭 {rec.recommendation}")
-    print(f"   🏷  {rec.headline}")
-    print(f"   📖 {rec.explanation}")
-    print(f"   🔒 Confidence: {rec.confidence}")
-    print("=========================================================\n")

@@ -11,16 +11,8 @@ def generate_feedback(data: FeedbackIn) -> FeedbackOut:
     attempts = data.attempts
     content_type = data.content_type
 
-    print("🔍 Generating feedback for text=", data.text, "spoken=", data.spoken)
-
-    # ----------------------------
-    # 📈 TREND ANALYSIS
-    # ----------------------------
     trend = trend_analysis(score, attempts, recent_scores=None)
 
-    # ----------------------------
-    # 🔍 PATTERN DETECTION
-    # ----------------------------
     pattern = detect_error_pattern(
         expected=data.text,
         spoken=data.spoken,
@@ -29,9 +21,6 @@ def generate_feedback(data: FeedbackIn) -> FeedbackOut:
 
     feedback_msgs = []
 
-    # ----------------------------
-    # 🎯 SCORE-BASED VERDICT
-    # ----------------------------
     if score >= 90:
         verdict = "excellent"
         feedback_msgs.append("Clear and confident — beautifully spoken 🌟")
@@ -48,31 +37,17 @@ def generate_feedback(data: FeedbackIn) -> FeedbackOut:
         verdict = "needs_practice"
         feedback_msgs.append("Take your time. Break it into parts and try again 🧠")
 
-    # ----------------------------
-    # 🔍 PATTERN-DRIVEN COACHING
-    # ----------------------------
     if pattern and pattern.get("code") != "normal":
         feedback_msgs.append(pattern["message"])
         feedback_msgs.append(pattern["tip"])
 
-    # ----------------------------
-    # 📈 TREND-BASED COACHING
-    # ----------------------------
     if trend:
         feedback_msgs.append(trend["message"])
         feedback_msgs.append(trend["tip"])
 
-    # ----------------------------
-    # 🧠 CONFIDENCE TIP
-    # ----------------------------
     confidence_tip = (
         "Progress builds with repetition. Speak slowly. Stay consistent 💙"
     )
-
-    print("\n========== 🧠 GENERATED FEEDBACK DEBUG ==========")
-    print(f"🎯 Verdict         : {verdict}")
-    print(f"📊 Score           : {round(score, 2)}")
-    print("=================================================\n")
 
     return FeedbackOut(
         verdict=verdict,

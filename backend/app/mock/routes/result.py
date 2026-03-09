@@ -27,5 +27,3 @@ def get_mock_result(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        print("result route passed")

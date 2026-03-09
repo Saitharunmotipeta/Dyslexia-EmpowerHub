@@ -5,43 +5,26 @@ import importlib.resources as pkg_resources
 from app.dynamic.utils.ai_cache import meaning_cache
 import app.prompts  # 👈 package import (important)
 
-# ----------------------------
-# Feature flag (AI ON / OFF)
-# ----------------------------
 AI_MEANING_ENABLED = os.getenv("AI_MEANING_ENABLED", "true").lower() == "true"
 
-# ----------------------------
-# OpenRouter configuration
-# ----------------------------
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Cheap, fast, stable — perfect for meaning explanations
 MODEL_NAME = "meta-llama/llama-3.1-8b-instruct"
 
 if AI_MEANING_ENABLED and not OPENROUTER_API_KEY:
     raise RuntimeError("OPENROUTER_API_KEY not set but AI_MEANING_ENABLED=true")
 
-# ----------------------------
-# Load prompt template SAFELY
-# ----------------------------
 with pkg_resources.files(app.prompts).joinpath(
     "dynamic_meaning.txt"
 ).open("r", encoding="utf-8") as f:
     PROMPT_TEMPLATE = f.read()
 
 
-# ----------------------------
-# Helpers
-# ----------------------------
 def _normalize_cache_key(text: str) -> str:
     return text.lower().strip()
 
-
-# ----------------------------
-# Public function
-# ----------------------------
 def generate_meaning(text: str, text_type: str) -> str:
     """
     Generate dyslexia-friendly meaning.
@@ -49,26 +32,19 @@ def generate_meaning(text: str, text_type: str) -> str:
     Backend-cached for token efficiency.
     """
 
-    # 🔒 COST GUARD 1 — skip AI for single words
     if text_type == "word":
         return f"'{text}' is a word. Read it slowly and say it clearly."
 
-    # 🔒 FEATURE FLAG — AI OFF
     if not AI_MEANING_ENABLED:
         print("⚠️ AI MEANING DISABLED — using fallback")
         return "This sentence explains an idea in a simple way."
 
     cache_key = _normalize_cache_key(text)
 
-    # 🔒 COST GUARD 2 — backend cache
     cached = meaning_cache.get(cache_key)
     if cached:
-        print("🟢 AI CACHE HIT — no API call")
         return cached
 
-    print("🔵 AI CACHE MISS — calling OpenRouter")
-
-    # 🔒 COMPRESSED PROMPT
     prompt = PROMPT_TEMPLATE.replace("{{TEXT}}", text)
 
     payload = {
@@ -119,7 +95,6 @@ def generate_meaning(text: str, text_type: str) -> str:
         )
 
         meaning_cache.set(cache_key, meaning)
-        print("💾 AI CACHE STORED")
 
         return meaning
 

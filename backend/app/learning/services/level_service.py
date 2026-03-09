@@ -13,17 +13,14 @@ def get_levels_with_stats(db: Session, user_id: int) -> List[Dict]:
     levels = db.query(Level).order_by(Level.order).all()
     result = []
 
-    # Track which levels are unlocked
     unlocked_levels = set()
 
     if not levels:
         return []
 
-    # First level is always unlocked
     first_level = levels[0]
     unlocked_levels.add(first_level.id)
 
-    # Check completed mock attempts
     completed_attempts = db.query(MockAttempt).filter(
         MockAttempt.user_id == user_id,
         MockAttempt.status == "completed"
@@ -39,7 +36,6 @@ def get_levels_with_stats(db: Session, user_id: int) -> List[Dict]:
         if unlock_info["can_proceed"]:
             current_level = attempt.level_id
 
-            # unlock next level only
             next_level = db.query(Level).filter(
                 Level.order == (
                     db.query(Level.order)
@@ -51,7 +47,6 @@ def get_levels_with_stats(db: Session, user_id: int) -> List[Dict]:
             if next_level:
                 unlocked_levels.add(next_level.id)
 
-    # Build response
     for level in levels:
 
         words = db.query(Word).filter(
@@ -101,8 +96,6 @@ def get_levels_with_stats_open(db: Session):
     Returns (level, total_words, mastered_words=0)
     """
     from sqlalchemy import func, literal
-
-    print("🔓 Fetching open levels with stats")
     return (
         db.query(
             Level,
