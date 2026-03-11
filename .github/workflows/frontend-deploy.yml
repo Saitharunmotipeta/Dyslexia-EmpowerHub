@@ -1,0 +1,20 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [ prod ]
+    paths:
+      - "frontend/**"
+
+jobs:
+  deploy-frontend:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build and start frontend
+        run: |
+          cd frontend
+          docker compose up -d --build
