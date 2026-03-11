@@ -11,10 +11,9 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Build and start backend
+      - name: Build backend
         run: |
           cd backend
           docker compose up -d --build
