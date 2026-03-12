@@ -1,6 +1,5 @@
 from difflib import SequenceMatcher
 
-# Safe phoneme import
 try:
     from app.practice.services.phoneme_service import extract_phonemes as get_phonemes
 except Exception:
@@ -26,7 +25,7 @@ def _text_similarity(expected: str, spoken: str) -> float:
 
 
 # -----------------------------
-# PHONEME EXTRACTION (SAFE)
+# PHONEME EXTRACTION
 # -----------------------------
 
 def _extract_phonemes(word: str):
@@ -73,92 +72,146 @@ def _compare_phonemes(expected_p, spoken_p):
 
 
 # -----------------------------
+# CONFIDENCE LEVEL
+# -----------------------------
+
+def _confidence_level(score: float) -> str:
+
+    if score >= 90:
+        return "very_confident"
+
+    if score >= 75:
+        return "confident"
+
+    if score >= 60:
+        return "developing"
+
+    return "needs_guidance"
+
+
+# -----------------------------
 # MAIN EVALUATION
 # -----------------------------
 
 def evaluate_similarity(expected: str, spoken: str) -> dict:
     """
-    Production-grade pronunciation evaluation.
-    Emotionally supportive. Analytically reliable.
+    Pronunciation evaluation engine.
+    Designed for dyslexia-friendly learning environments.
     """
 
     if not expected or not spoken:
         return {
             "score": 0.0,
             "verdict": "invalid_input",
+            "confidence": "needs_guidance",
             "phonetics": {
                 "expected": [],
                 "recognized": [],
                 "insights": {}
             },
-            "feedback": (
-                "No worries — let’s try that again together, "
-                "slowly and comfortably 🌱"
-            )
+            "feedback": [
+                "No worries — let's try that again together.",
+                "Speak slowly and comfortably 🌱"
+            ],
+            "practice_tip": "Take a deep breath and repeat the word slowly."
         }
 
-    # 1️⃣ Text similarity
+    # -----------------------------
+    # 1️⃣ Text Similarity Score
+    # -----------------------------
+
     score = _text_similarity(expected, spoken)
 
     verdict = (
-        "excellent" if score >= 85 else
-        "good" if score >= 65 else
+        "excellent" if score >= 90 else
+        "good" if score >= 75 else
+        "improving" if score >= 60 else
         "needs_practice"
     )
 
-    # 2️⃣ Phoneme analysis
+    confidence = _confidence_level(score)
+
+    # -----------------------------
+    # 2️⃣ Phoneme Analysis
+    # -----------------------------
+
     expected_p = _extract_phonemes(expected)
     spoken_p = _extract_phonemes(spoken)
 
     insights = _compare_phonemes(expected_p, spoken_p)
 
-    # 3️⃣ Intelligent feedback construction
+    # -----------------------------
+    # 3️⃣ Build Feedback
+    # -----------------------------
+
     feedback_points = []
 
     if insights.get("initial_sound") == "mismatch":
         feedback_points.append(
-            "Pay attention to the starting sound — begin it more clearly."
+            "Focus on the starting sound — begin the word clearly."
         )
 
     if insights.get("vowel") == "confusion":
         feedback_points.append(
-            "The vowel sound needs a bit of tuning. Slow down and feel the sound."
+            "The vowel sound can be improved. Slow down and listen to the middle sound."
         )
 
     if insights.get("final_sound") == "mismatch":
         feedback_points.append(
-            "Try to finish the word fully — don’t rush the ending."
+            "Try finishing the word fully without rushing the ending."
         )
 
-    # 4️⃣ Emotion-aware messaging
+    # -----------------------------
+    # 4️⃣ Emotion-Aware Messaging
+    # -----------------------------
+
     if verdict == "excellent":
-        feedback = (
-            "That was beautifully pronounced! 🌟 "
-            "Clear, confident, and well done."
+
+        feedback_points.insert(
+            0,
+            "Beautiful pronunciation! 🌟 Clear and confident."
         )
 
     elif verdict == "good":
-        feedback = (
-            "Nice effort! 👍 You’re very close. "
-            + (" ".join(feedback_points) if feedback_points else
-               "With a bit more practice, you’ll get it perfectly.")
+
+        feedback_points.insert(
+            0,
+            "Nice effort! You're very close 👍"
+        )
+
+    elif verdict == "improving":
+
+        feedback_points.insert(
+            0,
+            "Good progress 💪 Your pronunciation is improving."
         )
 
     else:
-        feedback = (
-            "Good try — and that effort matters 💪 "
-            + (" ".join(feedback_points) if feedback_points else
-               "Take your time and try again.")
-            + " Every attempt helps your brain learn."
+
+        feedback_points.insert(
+            0,
+            "Good attempt — and every attempt helps your brain learn 🧠"
         )
+
+    # -----------------------------
+    # 5️⃣ Practice Tip
+    # -----------------------------
+
+    practice_tip = (
+        "Try speaking the word slowly, one sound at a time."
+        if verdict != "excellent"
+        else "Keep practicing to build fluency."
+    )
 
     return {
         "score": score,
         "verdict": verdict,
+        "confidence": confidence,
         "phonetics": {
             "expected": expected_p,
             "recognized": spoken_p,
             "insights": insights
         },
-        "feedback": feedback
+        "feedback": feedback_points,
+        "practice_tip": practice_tip
     }

@@ -4,9 +4,9 @@ import random
 from sqlalchemy.orm import Session
 
 from app.mock.models.attempt import MockAttempt
+from app.mock.models.word import MockWord
 from app.mock.services.word import process_mock_word
 from app.mock.services.attempt import finalize_mock_attempt
-from app.learning.models.word import Word
 from app.mock.utils.unlock import can_unlock_next_level
 
 
@@ -14,12 +14,12 @@ from app.mock.utils.unlock import can_unlock_next_level
 # Utilities
 # -------------------------------------------------
 
-def generate_attempt_code() -> int:
+def generate_attempt_code() -> str:
     """
-    Public-safe 6 digit attempt code.
-    Example: 042931
+    Public-safe attempt code.
+    Example: MOCK-482193
     """
-    return int(f"{random.randint(0, 999999):06d}")
+    return f"MOCK-{random.randint(0, 999999):06d}"
 
 
 # -------------------------------------------------
@@ -32,34 +32,54 @@ def start_mock_automation(
     level_id: int,
 ):
     """
-    Starts automated mock.
-    - Unlock-aware
-    - Returns attempt_code + words
+    Starts automated mock test.
     """
 
-    # 1️⃣ Unlock rule
+    # -----------------------------
+    # Unlock rule
+    # -----------------------------
+
     if not can_unlock_next_level(db, user_id, level_id):
         raise ValueError(
-            "Mock test is locked. Practice a few more words to unlock."
+            "Mock test is still locked. Practice a few more words to unlock it."
         )
 
-    # 2️⃣ Fetch words
+    # -----------------------------
+    # Fetch mock words
+    # -----------------------------
+
     words = (
-        db.query(Word)
-        .filter(Word.level_id == level_id)
+        db.query(MockWord)
+        .filter(MockWord.level_id == level_id)
         .all()
     )
 
     if len(words) < 3:
-        raise ValueError("Not enough words to start mock test.")
+        raise ValueError(
+            "Not enough mock words available for this level."
+        )
 
     selected_words = random.sample(words, 3)
 
-    # 3️⃣ Create attempt
+    # -----------------------------
+    # Unique attempt id
+    # -----------------------------
+
+    public_attempt_id = generate_attempt_code()
+
+    while db.query(MockAttempt).filter(
+        MockAttempt.public_attempt_id == public_attempt_id
+    ).first():
+        public_attempt_id = generate_attempt_code()
+
+    # -----------------------------
+    # Create attempt
+    # -----------------------------
+
     attempt = MockAttempt(
         user_id=user_id,
         level_id=level_id,
-        public_attempt_id=generate_attempt_code(),
+        public_attempt_id=public_attempt_id,
         status="started",
         results={"words": []},
     )
@@ -73,12 +93,17 @@ def start_mock_automation(
         "words": [
             {
                 "word_id": w.id,
-                "text": w.text
+                "text": w.word
             }
             for w in selected_words
-        ]
+        ],
+        "message": "Mock test started. Speak each word clearly and take your time 🌱"
     }
 
+
+# -------------------------------------------------
+# Submit Word
+# -------------------------------------------------
 
 def submit_mock_word_automation(
     db: Session,
@@ -88,7 +113,7 @@ def submit_mock_word_automation(
     audio,
 ):
     """
-    Submit a single word audio during automation.
+    Submit audio for one word during automated mock.
     """
 
     attempt = (
@@ -104,7 +129,7 @@ def submit_mock_word_automation(
         raise ValueError("Invalid mock attempt.")
 
     if attempt.status == "completed":
-        raise ValueError("Mock test already completed.")
+        raise ValueError("This mock test has already been completed.")
 
     submitted_words = {
         w["word_id"]
@@ -112,17 +137,23 @@ def submit_mock_word_automation(
     }
 
     if word_id in submitted_words:
-        raise ValueError("This word has already been submitted.")
+        raise ValueError(
+            "This word has already been submitted."
+        )
 
-    # 🔁 Reuse SAME logic as manual mock
+    # reuse main processing logic
     return process_mock_word(
         db=db,
         user_id=user_id,
-        public_attempt_id=public_attempt_id,   # public-safe key
+        public_attempt_id=public_attempt_id,
         word_id=word_id,
         audio=audio,
     )
 
+
+# -------------------------------------------------
+# Complete Mock
+# -------------------------------------------------
 
 def complete_mock_automation(
     db: Session,
@@ -130,7 +161,7 @@ def complete_mock_automation(
     public_attempt_id: str,
 ):
     """
-    Finalize automated mock.
+    Finalizes automated mock.
     """
 
     attempt = (
@@ -149,10 +180,9 @@ def complete_mock_automation(
 
     if len(words) < 3:
         raise ValueError(
-            "Submit all 3 words before completing mock test."
+            "Please submit all three words before completing the mock test."
         )
 
-    # 🔁 Reuse SAME finalization logic
     return finalize_mock_attempt(
         db=db,
         user_id=user_id,

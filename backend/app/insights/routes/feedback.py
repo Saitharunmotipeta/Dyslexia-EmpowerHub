@@ -21,7 +21,8 @@ def analyze_pattern_handler(data: FeedbackIn, user_id: int):
         "pattern": detect_error_pattern(
             expected=data.text,
             spoken=data.spoken,
-            content_type=data.content_type
+            content_type=data.content_type,
+            syllables=data.syllables
         )
     }
 
