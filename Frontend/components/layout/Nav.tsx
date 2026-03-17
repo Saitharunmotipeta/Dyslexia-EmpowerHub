@@ -7,12 +7,9 @@ import { Icon } from "@/components/ui/Icon";
 import { ICON_NAMES } from "@/constants/icons";
 
 const mainLinks = [
-  { href: "/learning", label: "Learning" },
-  // { href: "/practice", label: "Voice Test" },
-  // { href: "/mock", label: "Mock Test" },
-  { href: "/dynamic", label: "Dynamic Learning" },
-  // { href: "/feedback", label: "Feedback" },
-  { href: "/chatbot", label: "Chatbot" },
+  { href: "/learning", label: "Learning", icon: ICON_NAMES.BOOK },
+  { href: "/dynamic", label: "Dynamic", icon: ICON_NAMES.LIGHTBULB },
+  { href: "/chatbot", label: "Chatbot", icon: ICON_NAMES.HELP },
 ];
 
 export function Nav() {
@@ -30,29 +27,38 @@ export function Nav() {
         </Link>
 
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-          {mainLinks.map(({ href, label }) => {
-            const isActive = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`
-                  rounded-xl px-3 py-2 text-sm font-medium transition-colors
-                  ${isActive ? "bg-primary-100 text-primary-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}
-                `}
-              >
-                {label}
-              </Link>
-            );
-          })}
+          {token && user && (
+            <>
+              {mainLinks.map(({ href, label, icon }) => {
+                const isActive = pathname.startsWith(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`
+                      rounded-xl px-3 py-2 text-sm font-medium transition-colors inline-flex items-center gap-1
+                      ${isActive ? "bg-primary-100 text-primary-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}
+                    `}
+                  >
+                    <Icon name={icon} size="sm" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </>
+          )}
 
           {!checked ? (
             <span className="text-sm text-gray-400">Loading…</span>
           ) : token && user ? (
             <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600 hidden sm:inline" title={user.email}>
-                {user.name}
-              </span>
+              <Link
+                href="/dashboard/profile"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 inline-flex items-center gap-1"
+              >
+                <Icon name={ICON_NAMES.USER} size="sm" />
+                <span className="hidden sm:inline">{user.name}</span>
+              </Link>
               <button
                 type="button"
                 onClick={logout}
@@ -67,17 +73,17 @@ export function Nav() {
             <>
               <Link
                 href="/auth/login"
-                className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 inline-flex items-center gap-1"
               >
-                <Icon name={ICON_NAMES.LOGIN} size="sm" className="inline mr-1" />
-                Log in
+                <Icon name={ICON_NAMES.LOGIN} size="sm" />
+                Sign In
               </Link>
               <Link
                 href="/auth/register"
                 className="rounded-2xl bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 flex items-center gap-1"
               >
                 <Icon name={ICON_NAMES.USER} size="sm" />
-                Sign up
+                Sign Up
               </Link>
             </>
           )}
