@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "clean": "rmdir /s /q .next 2>nul & rmdir /s /q node_modules\\.next 2>nul & rmdir /s /q .cache 2>nul & echo Cache cleaned",
+    "dev": "npm run clean && next dev",
+    "build": "npm run clean && next build",
     "start": "next start",
     "lint": "next lint"
   },

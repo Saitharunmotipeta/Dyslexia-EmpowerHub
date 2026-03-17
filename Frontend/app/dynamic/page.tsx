@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { dynamicApi, ApiError, type DynamicAnalyzeOut } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
@@ -75,10 +76,11 @@ export default function DynamicPage() {
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <div className="mb-8">
         <Link
-          href="/"
-          className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
+          href="/dashboard"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition-all duration-200 transform hover:scale-105 active:scale-95 font-medium text-sm shadow-soft"
         >
-          ← Back
+          <ArrowLeft size={18} className="transition-transform group-hover:-translate-x-1" />
+          Back to Dashboard
         </Link>
         <h1 className="mt-2 text-3xl font-bold text-gray-900">Dynamic learning</h1>
         <p className="mt-1 text-gray-600">Type or say the word you see.</p>
