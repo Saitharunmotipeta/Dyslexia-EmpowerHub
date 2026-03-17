@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { Icon } from "@/components/ui/Icon";
+import { ICON_NAMES } from "@/constants/icons";
 
 const mainLinks = [
   { href: "/learning", label: "Learning" },
@@ -47,16 +49,18 @@ export function Nav() {
           {!checked ? (
             <span className="text-sm text-gray-400">Loading…</span>
           ) : token && user ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600" title={user.email}>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600 hidden sm:inline" title={user.email}>
                 {user.name}
               </span>
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                className="rounded-xl p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                title="Log out"
+                aria-label="Log out"
               >
-                Log out
+                <Icon name={ICON_NAMES.LOGOUT} size="base" />
               </button>
             </div>
           ) : (
@@ -65,12 +69,14 @@ export function Nav() {
                 href="/auth/login"
                 className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               >
+                <Icon name={ICON_NAMES.LOGIN} size="sm" className="inline mr-1" />
                 Log in
               </Link>
               <Link
                 href="/auth/register"
-                className="rounded-2xl bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600"
+                className="rounded-2xl bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 flex items-center gap-1"
               >
+                <Icon name={ICON_NAMES.USER} size="sm" />
                 Sign up
               </Link>
             </>
