@@ -1,9 +1,19 @@
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@100..900&display=swap");
+@import url("https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/open-dyslexic-regular.css");
+
+/* Alias so .dyslexia-mode font stack "OpenDyslexic" resolves */
+@font-face {
+  font-family: "OpenDyslexic";
+  src: url("https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-open-dyslexic: "Open Dyslexic", system-ui, sans-serif;
   color-scheme: light;
 }
 
@@ -20,18 +30,41 @@ html, body {
 }
 
 body {
-  @apply bg-gray-50 text-gray-900;
-  font-family: var(--font-open-dyslexic);
+  @apply bg-gradient-to-br from-[#FFF8E7] to-[#F4F4F4] text-[#1A1A1A];
+  font-family: "Lexend", Arial, sans-serif;
   font-feature-settings: "rlig" 1, "calt" 1;
 }
 
 /* High contrast and spacing for dyslexia-friendly reading */
 .prose-readable {
-  @apply leading-relaxed;
+  @apply leading-relaxed tracking-wide;
   letter-spacing: 0.02em;
 }
 
-/* Focus visible for accessibility */
+/* Focus visible for accessibility (soft blue-gray) */
 *:focus-visible {
-  @apply outline-2 outline-offset-2 outline-primary-500;
+  outline: 2px solid #6B8CA3;
+  outline-offset: 2px;
+}
+
+/* Dyslexia-friendly reading mode (applied when toggle is ON) */
+body.dyslexia-mode,
+body.dyslexia-mode * {
+  font-family: "OpenDyslexic", "Lexend", Arial, sans-serif !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.65 !important;
+}
+
+body.dyslexia-mode {
+  font-size: 107.5%;
+}
+@keyframes fadeRiseSoft {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

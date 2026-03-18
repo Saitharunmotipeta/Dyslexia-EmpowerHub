@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { Icon } from "@/components/ui/Icon";
 import { ICON_NAMES } from "@/constants/icons";
+import { assetUrl } from "@/constants/assets";
 
 const mainLinks = [
   { href: "/learning", label: "Learning", icon: ICON_NAMES.BOOK },
@@ -17,14 +18,22 @@ export function Nav() {
   const { token, user, logout, checked } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 shadow-soft backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-[#E8E4DC] bg-dyslexia-bg-primary/95 shadow-soft backdrop-blur transition-all duration-300 ease-out">
       <nav className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6" aria-label="Main">
-        <Link
-          href="/"
-          className="text-xl font-bold text-primary-600 hover:text-primary-700"
-        >
-          Dyslexia Smart EmpowerHub using AI
-        </Link>
+      <Link
+        href="/"
+        className="flex items-center gap-2 group"
+      >
+        <img
+          src={assetUrl("logo.png")}
+          alt="logo"
+          className="h-20 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+        />
+
+        <span className="text-lg font-bold text-[#4A6FA5] group-hover:text-[#6B8CA3] transition">
+          Dyslexia EmpowerHub
+        </span>
+      </Link>
 
         <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
           {token && user && (
@@ -36,8 +45,8 @@ export function Nav() {
                     key={href}
                     href={href}
                     className={`
-                      rounded-xl px-3 py-2 text-sm font-medium transition-colors inline-flex items-center gap-1
-                      ${isActive ? "bg-primary-100 text-primary-700" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"}
+                      rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ease-out inline-flex items-center gap-1 leading-relaxed tracking-wide
+                      ${isActive ? "bg-[#6B8CA3]/15 text-dyslexia-accent-blue" : "text-dyslexia-text-secondary hover:bg-dyslexia-bg-secondary hover:text-dyslexia-text-primary"}
                     `}
                   >
                     <Icon name={icon} size="sm" />
@@ -49,12 +58,12 @@ export function Nav() {
           )}
 
           {!checked ? (
-            <span className="text-sm text-gray-400">Loading…</span>
+            <span className="text-sm text-dyslexia-text-secondary">Loading…</span>
           ) : token && user ? (
             <div className="flex items-center gap-3">
               <Link
                 href="/dashboard/profile"
-                className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 inline-flex items-center gap-1"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-dyslexia-text-secondary hover:bg-dyslexia-bg-secondary hover:text-dyslexia-text-primary transition-all duration-200 inline-flex items-center gap-1 leading-relaxed tracking-wide"
               >
                 <Icon name={ICON_NAMES.USER} size="sm" />
                 <span className="hidden sm:inline">{user.name}</span>
@@ -62,7 +71,7 @@ export function Nav() {
               <button
                 type="button"
                 onClick={logout}
-                className="rounded-xl p-2 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+                className="rounded-xl p-2 text-dyslexia-text-secondary hover:bg-dyslexia-bg-secondary hover:text-dyslexia-text-primary transition-all duration-200"
                 title="Log out"
                 aria-label="Log out"
               >
@@ -73,14 +82,14 @@ export function Nav() {
             <>
               <Link
                 href="/auth/login"
-                className="rounded-xl px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 inline-flex items-center gap-1"
+                className="rounded-xl px-3 py-2 text-sm font-medium text-dyslexia-text-secondary hover:bg-dyslexia-bg-secondary hover:text-dyslexia-text-primary transition-all duration-200 inline-flex items-center gap-1 leading-relaxed tracking-wide"
               >
                 <Icon name={ICON_NAMES.LOGIN} size="sm" />
                 Sign In
               </Link>
               <Link
                 href="/auth/register"
-                className="rounded-2xl bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 flex items-center gap-1"
+                className="rounded-2xl bg-dyslexia-accent-blue px-4 py-2 text-sm font-medium text-white hover:opacity-90 flex items-center gap-1 transition-all duration-200 leading-relaxed tracking-wide"
               >
                 <Icon name={ICON_NAMES.USER} size="sm" />
                 Sign Up

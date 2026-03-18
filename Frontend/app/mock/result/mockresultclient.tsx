@@ -10,6 +10,8 @@ import { mock, ApiError, type MockResultResponse } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { CompletionPopup } from "@/components/ui/CompletionPopup";
+import { assetUrl } from "@/constants/assets";
 
 export default function MockResultPage() {
   const router = useRouter();
@@ -20,6 +22,7 @@ export default function MockResultPage() {
   const [data, setData] = useState<MockResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showMockCompletion, setShowMockCompletion] = useState(false);
 
   useEffect(() => {
     if (!checked) return;
@@ -34,7 +37,10 @@ export default function MockResultPage() {
     }
     mock
       .getResult({ public_attempt_id: attemptId })
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setShowMockCompletion(true);
+      })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load result"))
       .finally(() => setLoading(false));
   }, [attemptId, token, checked, router]);
@@ -43,15 +49,15 @@ export default function MockResultPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-gray-600">Loading result…</p>
+        <p className="text-dyslexia-text-secondary leading-relaxed tracking-wide">Loading result…</p>
       </div>
     );
   }
   if (error || !data) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-red-600">{error ?? "No result"}</p>
-        <Link href="/mock" className="mt-4 inline-block text-primary-600 hover:underline">
+        <p className="text-dyslexia-accent-purple leading-relaxed tracking-wide">{error ?? "No result"}</p>
+        <Link href="/mock" className="mt-4 inline-block text-dyslexia-accent-blue hover:underline transition-colors duration-200">
           Back to mock test
         </Link>
       </div>
@@ -62,33 +68,41 @@ export default function MockResultPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <h1 className="text-3xl font-bold text-gray-900">Mock test result</h1>
-      <p className="mt-1 text-gray-600">{data.message}</p>
+      <CompletionPopup
+        open={showMockCompletion}
+        onClose={() => setShowMockCompletion(false)}
+        imageSrc={assetUrl("mockcompletion.gif")}
+        imageAlt="Mock test completion"
+      >
+        {scorePct}% mastery. Report sent to mail
+      </CompletionPopup>
+      <h1 className="text-3xl font-bold text-dyslexia-text-primary leading-relaxed tracking-wide">Mock test result</h1>
+      <p className="mt-1 text-dyslexia-text-secondary leading-relaxed tracking-wide">{data.message}</p>
 
-      <Card className="mt-8 space-y-6" padding="lg">
+      <Card className="mt-8 space-y-6 transition-all duration-300 ease-out" padding="lg">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-gray-600">Score</p>
-            <p className="text-3xl font-bold text-primary-600">{scorePct}%</p>
+            <p className="text-sm text-dyslexia-text-secondary leading-relaxed tracking-wide">Score</p>
+            <p className="text-3xl font-bold text-dyslexia-accent-blue">{scorePct}%</p>
           </div>
           <ProgressBar value={scorePct} className="max-w-[200px]" />
         </div>
-        <p className="text-lg font-semibold text-gray-900">Verdict: {data.verdict}</p>
+        <p className="text-lg font-semibold text-dyslexia-text-primary leading-relaxed tracking-wide">Verdict: {data.verdict}</p>
 
         {data.words?.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Words</h2>
+            <h2 className="text-lg font-semibold text-dyslexia-text-primary leading-relaxed tracking-wide">Words</h2>
             <ul className="mt-2 space-y-2">
               {data.words.map((w: Record<string, unknown>, i: number) => (
                 <li
                   key={i}
-                  className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-50 p-3"
+                  className="flex flex-wrap items-center gap-2 rounded-xl bg-dyslexia-bg-secondary p-3 leading-relaxed tracking-wide"
                 >
-                  <span className="font-medium">{String(w.expected ?? "")}</span>
-                  <span className="text-gray-500">→</span>
+                  <span className="font-medium text-dyslexia-text-primary">{String(w.expected ?? "")}</span>
+                  <span className="text-dyslexia-text-secondary">→</span>
                   <span
                     className={
-                      Number(w.score) >= 80 ? "text-green-600" : "text-red-600"
+                      Number(w.score) >= 80 ? "text-dyslexia-accent-green" : "text-dyslexia-accent-blue"
                     }
                   >
                     {String(w.spoken ?? "")} ({Number(w.score)}%)
@@ -101,8 +115,8 @@ export default function MockResultPage() {
 
         {data.tips?.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Tips</h2>
-            <ul className="mt-2 list-inside list-disc text-gray-600">
+            <h2 className="text-lg font-semibold text-dyslexia-text-primary leading-relaxed tracking-wide">Tips</h2>
+            <ul className="mt-2 list-inside list-disc text-dyslexia-text-secondary leading-relaxed tracking-wide">
               {data.tips.map((tip, i) => (
                 <li key={i}>{tip}</li>
               ))}

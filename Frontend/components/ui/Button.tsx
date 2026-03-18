@@ -45,7 +45,8 @@ export function Button({
       type={type}
       className={`
         inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-base font-medium
-        transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+        transition-all duration-200 ease-out disabled:opacity-50 disabled:cursor-not-allowed
+        hover:scale-105 active:scale-[0.98]
         ${variantClasses[variant]}
         ${className}
       `}
