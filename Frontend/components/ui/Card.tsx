@@ -23,7 +23,8 @@ export function Card({
   return (
     <div
       className={`
-        rounded-2xl bg-white shadow-soft border border-gray-100
+        rounded-2xl bg-dyslexia-bg-primary shadow-soft border border-[#E8E4DC]
+        transition-all duration-300 ease-out
         ${paddingClasses[padding]}
         ${className}
       `}

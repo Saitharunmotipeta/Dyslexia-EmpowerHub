@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@fontsource/opendyslexic": "^5.2.5",
     "axios": "^1.13.5",
     "lucide-react": "^0.408.0",
     "next": "14.2.18",

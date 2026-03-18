@@ -9,6 +9,8 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
+import { CompletionPopup } from "@/components/ui/CompletionPopup";
+import { assetUrl } from "@/constants/assets";
 
 const PACE_MIN = 50;
 const PACE_MAX = 150;
@@ -60,6 +62,10 @@ export default function PracticePage() {
   const [loading, setLoading] = useState(false);
   const [wordLoading, setWordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showWordCompletion, setShowWordCompletion] = useState(false);
+  const [showRetry, setShowRetry] = useState(false);
+  const [showNextGif, setShowNextGif] = useState(false);
+  const wordCompletedThisSessionRef = useRef(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -92,6 +98,30 @@ export default function PracticePage() {
       .finally(() => setWordLoading(false));
   }, [token, wordId, levelId]);
 
+  useEffect(() => {
+    wordCompletedThisSessionRef.current = false;
+  }, [wordId, levelId]);
+
+  useEffect(() => {
+    if (!showNextGif || !levelId || !wordId) return;
+    const t = setTimeout(() => {
+      learning
+        .getWordsForLevel(levelId)
+        .then((words) => {
+          const idx = words.findIndex((w) => w.id === wordId);
+          if (idx >= 0 && idx < words.length - 1) {
+            const nextWord = words[idx + 1];
+            router.push(`/practice?wordId=${nextWord.id}&levelId=${levelId}`);
+          } else {
+            router.push(`/learning/${levelId}`);
+          }
+        })
+        .catch(() => router.push(`/learning/${levelId}`))
+        .finally(() => setShowNextGif(false));
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [showNextGif, levelId, wordId, router]);
+
   const submitSpoken = useCallback(
     async (spoken: string) => {
       if (!wordId) {
@@ -100,12 +130,24 @@ export default function PracticePage() {
       }
       setLoading(true);
       setError(null);
+      setShowWordCompletion(false);
+      setShowRetry(false);
+      setShowNextGif(false);
       try {
         const res = await practice.evaluate({
           word_id: wordId,
           recognized_text: spoken || " ",
         });
         setResult(res);
+        if (res.score >= 60) {
+          setShowWordCompletion(true);
+          setShowNextGif(true);
+          wordCompletedThisSessionRef.current = true;
+        } else {
+          if (!wordCompletedThisSessionRef.current) {
+            setShowRetry(true);
+          }
+        }
       } catch (err) {
         setError(err instanceof ApiError ? err.message : "Evaluation failed");
       } finally {
@@ -226,32 +268,32 @@ export default function PracticePage() {
       <div className="mb-8">
         <Link
           href="/learning"
-          className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
+          className="inline-flex items-center text-sm font-medium text-dyslexia-text-secondary hover:text-dyslexia-text-primary transition-all duration-200 leading-relaxed tracking-wide"
         >
           ← Back
         </Link>
-        <h1 className="mt-2 text-3xl font-bold text-gray-900">Voice test</h1>
-        <p className="mt-1 text-gray-600">
+        <h1 className="mt-2 text-3xl font-bold text-dyslexia-text-primary leading-relaxed tracking-wide">Voice test</h1>
+        <p className="mt-1 text-dyslexia-text-secondary leading-relaxed tracking-wide">
           Record or type the word. We&apos;ll compare it to the expected word.
         </p>
       </div>
 
       <Card className="space-y-6" padding="lg">
         {!wordId || !levelId ? (
-          <p className="text-amber-700">
+          <p className="text-dyslexia-accent-purple leading-relaxed tracking-wide">
             Open this page from Learning → choose a level → Practice on a word.
           </p>
         ) : wordLoading ? (
-          <p className="text-gray-600">Loading word…</p>
+          <p className="text-dyslexia-text-secondary leading-relaxed tracking-wide">Loading word…</p>
         ) : (
           <>
             {/* Visual hint: image from backend if available, else placeholder */}
-            <div className="min-h-[160px] overflow-hidden rounded-2xl bg-gray-100">
+            <div className="min-h-[160px] overflow-hidden rounded-xl bg-dyslexia-bg-secondary transition-all duration-300">
               {currentWord?.image_url ? (
                 <img
                   src={currentWord.image_url}
                   alt={displayWord}
-                  className="h-full w-full object-contain"
+                  className="h-full w-full object-contain rounded-xl"
                 />
               ) : (
                 <PlaceholderMedia type="image" label={`Visual hint for ${displayWord || "word"}`} className="min-h-[160px]" />
@@ -259,14 +301,14 @@ export default function PracticePage() {
             </div>
 
             {/* Word to speak — large and readable */}
-            <p className="text-center text-2xl font-bold uppercase tracking-wide text-gray-900 sm:text-3xl">
+            <p className="text-center text-2xl font-bold uppercase tracking-wide text-dyslexia-text-primary sm:text-3xl leading-relaxed">
               {displayWord || "—"}
             </p>
             {currentWord?.phonetics && (
-              <p className="text-center text-lg text-gray-600">{currentWord.phonetics}</p>
+              <p className="text-center text-lg text-dyslexia-text-secondary leading-relaxed tracking-wide">{currentWord.phonetics}</p>
             )}
             {currentWord?.syllables && (
-              <p className="text-center text-sm text-gray-500">{currentWord.syllables}</p>
+              <p className="text-center text-sm text-dyslexia-text-secondary">{currentWord.syllables}</p>
             )}
 
             {/* Play word (TTS) at current pace */}
@@ -292,7 +334,7 @@ export default function PracticePage() {
             </div>
 
             <div>
-              <label htmlFor="pace-slider" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="pace-slider" className="block text-sm font-medium text-dyslexia-text-primary leading-relaxed tracking-wide">
                 Playback pace (affects &quot;Play word&quot; speed): {pace}%
               </label>
               <input
@@ -302,12 +344,12 @@ export default function PracticePage() {
                 max={PACE_MAX}
                 value={pace}
                 onChange={(e) => setPace(Number(e.target.value))}
-                className="mt-2 w-full accent-primary-500"
+                className="mt-2 w-full accent-[#6B8CA3]"
                 aria-valuenow={pace}
                 aria-valuemin={PACE_MIN}
                 aria-valuemax={PACE_MAX}
               />
-              <p className="mt-1 text-sm text-gray-500">Debounced value: {paceDebounced}%</p>
+              <p className="mt-1 text-sm text-dyslexia-text-secondary">Debounced value: {paceDebounced}%</p>
             </div>
           </>
         )}
@@ -317,7 +359,7 @@ export default function PracticePage() {
             type="text"
             name="spoken"
             placeholder="Or type the word here..."
-            className="flex-1 rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
+            className="flex-1 rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary px-4 py-3 focus:border-dyslexia-accent-blue focus:outline-none focus:ring-2 focus:ring-dyslexia-accent-blue/20 transition-all duration-200 leading-relaxed tracking-wide"
           />
           <Button type="submit" disabled={!wordId || loading}>
             Submit
@@ -325,30 +367,48 @@ export default function PracticePage() {
         </form>
 
         {error && (
-          <p className="text-sm text-red-600" role="alert">
+          <p className="text-sm text-dyslexia-accent-purple" role="alert">
             {error}
           </p>
         )}
 
+        <CompletionPopup
+          open={showWordCompletion}
+          onClose={() => setShowWordCompletion(false)}
+          imageSrc={assetUrl("levelcompletion.gif")}
+          imageAlt="Word completion"
+          variant="success"
+        >
+          Yay! You reached {result?.score ?? 0}% mastery
+        </CompletionPopup>
+        <CompletionPopup
+          open={showRetry}
+          onClose={() => setShowRetry(false)}
+          imageSrc={assetUrl("retry.gif")}
+          imageAlt="Try again"
+          variant="retry"
+        >
+          Try again to improve your mastery
+        </CompletionPopup>
         {result && (
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <p className="text-sm font-medium text-gray-700">Transcript</p>
-            <p className="mt-1 text-lg">
-              Expected: <span className="font-semibold text-gray-900">{result.expected}</span>
+          <div className="rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary p-4 transition-all duration-300">
+            <p className="text-sm font-medium text-dyslexia-text-primary leading-relaxed tracking-wide">Transcript</p>
+            <p className="mt-1 text-lg leading-relaxed tracking-wide">
+              Expected: <span className="font-semibold text-dyslexia-text-primary">{result.expected}</span>
             </p>
-            <p className="mt-1 text-lg">
+            <p className="mt-1 text-lg leading-relaxed tracking-wide">
               You said:{" "}
               <span
                 className={
                   result.is_correct
-                    ? "font-semibold text-green-600"
-                    : "font-semibold text-red-600"
+                    ? "font-semibold text-dyslexia-accent-green"
+                    : "font-semibold text-dyslexia-accent-blue"
                 }
               >
                 {result.recognized || "(empty)"}
               </span>
             </p>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-sm text-dyslexia-text-secondary">
               Score: {result.score}% · {result.is_correct ? "Correct" : "Incorrect"}
             </p>
           </div>

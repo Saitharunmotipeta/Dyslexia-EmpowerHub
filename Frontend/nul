@@ -1,0 +1,4 @@
+rmdir: /s: No such file or directory
+rmdir: /q: No such file or directory
+rmdir: .cache: No such file or directory
+ directory

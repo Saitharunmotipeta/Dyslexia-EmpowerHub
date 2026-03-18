@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { learning, ApiError, type WordStatusOut } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { CompletionPopup } from "@/components/ui/CompletionPopup";
+import { assetUrl } from "@/constants/assets";
 
 export default function LevelWordsPage() {
   const router = useRouter();
@@ -16,6 +18,7 @@ export default function LevelWordsPage() {
   const [words, setWords] = useState<WordStatusOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showLevelCompletion, setShowLevelCompletion] = useState(false);
 
   useEffect(() => {
     if (!checked || !levelId) return;
@@ -25,7 +28,12 @@ export default function LevelWordsPage() {
     }
     learning
       .getWordsForLevel(levelId)
-      .then(setWords)
+      .then((w) => {
+        setWords(w);
+        if (w.length > 0 && w.every((x) => x.is_mastered)) {
+          setShowLevelCompletion(true);
+        }
+      })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 403) {
           setError("Complete the previous level to unlock this one.");
@@ -40,15 +48,15 @@ export default function LevelWordsPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-12">
-        <p className="text-gray-600">Loading words…</p>
+        <p className="text-dyslexia-text-secondary leading-relaxed tracking-wide">Loading words…</p>
       </div>
     );
   }
   if (error) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-12">
-        <p className="text-red-600">{error}</p>
-        <Link href="/learning" className="mt-4 inline-block text-primary-600 hover:underline">
+        <p className="text-dyslexia-accent-purple leading-relaxed tracking-wide">{error}</p>
+        <Link href="/learning" className="mt-4 inline-block text-dyslexia-accent-blue hover:underline transition-colors duration-200">
           Back to levels
         </Link>
       </div>
@@ -57,30 +65,38 @@ export default function LevelWordsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <CompletionPopup
+        open={showLevelCompletion}
+        onClose={() => setShowLevelCompletion(false)}
+        imageSrc={assetUrl("mainlevelcompletion.jpeg")}
+        imageAlt="Level completed"
+      >
+        Hooray! Level completed
+      </CompletionPopup>
       <div className="mb-8">
         <Link
           href="/learning"
-          className="inline-flex items-center text-sm font-medium text-gray-600 hover:text-gray-900"
+          className="inline-flex items-center text-sm font-medium text-dyslexia-text-secondary hover:text-dyslexia-text-primary transition-all duration-200 leading-relaxed tracking-wide"
         >
           ← Back to levels
         </Link>
-        <h1 className="mt-2 text-3xl font-bold text-gray-900">Level {levelId} words</h1>
-        <p className="mt-1 text-gray-600">Practice these words.</p>
+        <h1 className="mt-2 text-3xl font-bold text-dyslexia-text-primary leading-relaxed tracking-wide">Level {levelId} words</h1>
+        <p className="mt-1 text-dyslexia-text-secondary leading-relaxed tracking-wide">Practice these words.</p>
       </div>
 
       <div className="space-y-4">
         {words.map((w) => (
-          <Card key={w.id} padding="md">
+          <Card key={w.id} padding="md" className="transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-lg font-semibold text-gray-900">{w.text}</p>
+                <p className="text-lg font-semibold text-dyslexia-text-primary leading-relaxed tracking-wide">{w.text}</p>
                 {w.phonetics && (
-                  <p className="text-sm text-gray-500">{w.phonetics}</p>
+                  <p className="text-sm text-dyslexia-text-secondary">{w.phonetics}</p>
                 )}
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-sm text-dyslexia-text-secondary leading-relaxed tracking-wide">
                   Mastery: {Math.round(w.mastery_score * 100)}% · Attempts: {w.attempts}
                   {w.is_mastered && (
-                    <span className="ml-2 text-success-600">✓ Mastered</span>
+                    <span className="ml-2 text-dyslexia-accent-green">✓ Mastered</span>
                   )}
                 </p>
               </div>

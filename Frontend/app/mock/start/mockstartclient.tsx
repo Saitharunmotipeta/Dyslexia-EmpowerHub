@@ -2,13 +2,37 @@
 
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { mock, ApiError, type MockStartResponse } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognition;
+    webkitSpeechRecognition?: new () => SpeechRecognition;
+  }
+}
+interface SpeechRecognitionEvent extends Event {
+  readonly results: SpeechRecognitionResultList;
+}
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+}
+function getSpeechRecognition(): (new () => SpeechRecognition) | null {
+  if (typeof window === "undefined") return null;
+  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
+}
 
 export default function MockRunPage() {
   const router = useRouter();
@@ -23,6 +47,8 @@ export default function MockRunPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [spoken, setSpoken] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
     if (!checked) return;
@@ -68,6 +94,55 @@ export default function MockRunPage() {
     }
   };
 
+  // Hear word (TTS)
+  const playWord = useCallback(() => {
+    const word = currentWord?.word;
+    if (!word || typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(word);
+    u.lang = "en-US";
+    window.speechSynthesis.speak(u);
+  }, [currentWord?.word]);
+
+  // Speak (STT) — fill the input with what you say
+  const startListening = useCallback(() => {
+    setError(null);
+    const SR = getSpeechRecognition();
+    if (!SR) {
+      setError("Speech recognition not supported. Use the text field.");
+      return;
+    }
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map((r) => r[0].transcript)
+        .join(" ")
+        .trim();
+      if (transcript) setSpoken(transcript);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognition.start();
+    recognitionRef.current = recognition;
+    setListening(true);
+  }, []);
+
+  const stopListening = useCallback(() => {
+    const rec = recognitionRef.current;
+    if (rec) {
+      try {
+        rec.stop();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+    setListening(false);
+  }, []);
+
   if (!checked || !token) return null;
   if (loading) {
     return (
@@ -101,6 +176,28 @@ export default function MockRunPage() {
         <p className="text-center text-2xl font-bold text-gray-900">
           {currentWord?.word ?? "—"}
         </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={playWord}
+            disabled={!currentWord?.word}
+            aria-label="Hear word"
+          >
+            <span className="mr-2" aria-hidden>🔊</span>
+            Hear word
+          </Button>
+          <Button
+            type="button"
+            variant={listening ? "secondary" : "primary"}
+            onClick={listening ? stopListening : startListening}
+            disabled={!currentWord}
+            aria-pressed={listening}
+          >
+            {listening ? "Stop" : "🎙 Speak"}
+          </Button>
+        </div>
 
         <form onSubmit={handleSubmitWord} className="space-y-4">
           <input
