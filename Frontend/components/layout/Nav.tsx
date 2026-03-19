@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Icon } from "@/components/ui/Icon";
 import { ICON_NAMES } from "@/constants/icons";
 import { assetUrl } from "@/constants/assets";
+import { ProfileHover } from "@/components/ProfileHover";
 
 const mainLinks = [
   { href: "/learning", label: "Learning", icon: ICON_NAMES.BOOK },
@@ -60,24 +61,7 @@ export function Nav() {
           {!checked ? (
             <span className="text-sm text-dyslexia-text-secondary">Loading…</span>
           ) : token && user ? (
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard/profile"
-                className="rounded-xl px-3 py-2 text-sm font-medium text-dyslexia-text-secondary hover:bg-dyslexia-bg-secondary hover:text-dyslexia-text-primary transition-all duration-200 inline-flex items-center gap-1 leading-relaxed tracking-wide"
-              >
-                <Icon name={ICON_NAMES.USER} size="sm" />
-                <span className="hidden sm:inline">{user.name}</span>
-              </Link>
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-xl p-2 text-dyslexia-text-secondary hover:bg-dyslexia-bg-secondary hover:text-dyslexia-text-primary transition-all duration-200"
-                title="Log out"
-                aria-label="Log out"
-              >
-                <Icon name={ICON_NAMES.LOGOUT} size="base" />
-              </button>
-            </div>
+            <ProfileHover />
           ) : (
             <>
               <Link
