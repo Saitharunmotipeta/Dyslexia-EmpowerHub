@@ -6,10 +6,13 @@ from app.learning.models.level_word import LevelWord
 from app.learning.models.word import Word
 from app.learning.models.level import Level
 from app.mock.models.attempt import MockAttempt
-from app.dynamic.models.dynamic_attempt import DynamicAttempt  # adjust path if needed
+from app.dynamic.models.dynamic_attempt import DynamicAttempt
+from app.chatbot.utils import format_timestamp, normalize  
 
 
 def run(user_id: int, db: Session) -> dict | None:
+    SIMILARITY_THRESHOLD = 0.7
+    MOCK_THRESHOLD = 60
 
     # ---- Fetch Latest Word Practice ----
     last_word = (
