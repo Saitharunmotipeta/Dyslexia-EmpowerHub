@@ -51,6 +51,49 @@ export default function ProfilePage() {
   const totalHours = Math.floor(user.total_time_spent / 3600);
   const totalMinutes = Math.floor((user.total_time_spent % 3600) / 60);
 
+  // Generate personalized motivational message
+  const getMotivationalMessage = () => {
+    if (user.streak_days >= 30) {
+      return {
+        emoji: "🌟",
+        title: "You're On Fire!",
+        message: `Amazing! You've maintained a ${user.streak_days}-day streak. Your consistency is inspiring!`,
+      };
+    } else if (user.streak_days >= 7) {
+      return {
+        emoji: "🚀",
+        title: "Great Progress!",
+        message: `You've built a ${user.streak_days}-day streak! Keep this momentum going.`,
+      };
+    } else if (user.courses_completed >= 5) {
+      return {
+        emoji: "💪",
+        title: "You're Doing Amazing!",
+        message: `You've completed ${user.courses_completed} levels. Every step is progress!`,
+      };
+    } else if (user.points >= 1000) {
+      return {
+        emoji: "⭐",
+        title: "You're Rocking It!",
+        message: `You've earned ${user.points.toLocaleString()} points. Keep learning and growing!`,
+      };
+    } else if (user.total_login_days >= 5) {
+      return {
+        emoji: "🎯",
+        title: "You're Building a Habit!",
+        message: `You've been with us for ${user.total_login_days} days. Consistency is key to success!`,
+      };
+    } else {
+      return {
+        emoji: "🌱",
+        title: "Welcome to Your Learning Journey!",
+        message: "You've just started! Every expert was once a beginner. Keep going!",
+      };
+    }
+  };
+
+  const motivation = getMotivationalMessage();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-dyslexia-bg-primary to-dyslexia-bg-secondary">
       <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -85,7 +128,20 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Main Stats Grid */}
+          {/* Motivational Banner */}
+          <div className="bg-gradient-to-r from-[#FFD700]/15 via-[#4A6FA5]/5 to-[#6B8CA3]/15 py-6 px-6 sm:px-8 border-b border-[#E8E4DC]">
+            <div className="flex items-start gap-4">
+              <div className="text-4xl flex-shrink-0">{motivation.emoji}</div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold text-dyslexia-text-primary mb-1">
+                  {motivation.title}
+                </h2>
+                <p className="text-base text-dyslexia-text-secondary leading-relaxed">
+                  {motivation.message}
+                </p>
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 sm:p-8 border-b border-[#E8E4DC]">
             {/* Levels Completed */}
             <div className="rounded-xl bg-dyslexia-bg-secondary p-4">
@@ -243,6 +299,64 @@ export default function ProfilePage() {
                   {Math.round(user.total_time_spent / Math.max(user.total_login_days, 1))} min
                 </span>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Motivational Footer Section */}
+      <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="rounded-2xl border border-[#E8E4DC] bg-gradient-to-br from-[#6B8CA3]/5 to-[#4A6FA5]/5 shadow-soft p-8">
+          <div className="text-center">
+            <h3 className="text-2xl font-bold text-dyslexia-text-primary mb-4">
+              🎓 Your Learning Story
+            </h3>
+            <p className="text-lg text-dyslexia-text-secondary mb-6 leading-relaxed max-w-2xl mx-auto">
+              {user.streak_days > 0
+                ? `You've shown incredible dedication with your ${user.streak_days}-day streak. That's ${Math.round((user.streak_days / 365) * 100)}% of a year of consistency! 🎉`
+                : "Start your streak today and unlock your full potential! Every day is an opportunity to learn and grow."}
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 rounded-xl bg-dyslexia-bg-primary border border-[#E8E4DC]">
+                <div className="text-2xl mb-2">📚</div>
+                <div className="text-sm text-dyslexia-text-secondary">
+                  {user.courses_completed} Levels
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-dyslexia-bg-primary border border-[#E8E4DC]">
+                <div className="text-2xl mb-2">⏱️</div>
+                <div className="text-sm text-dyslexia-text-secondary">
+                  {totalHours}h {totalMinutes}m
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-dyslexia-bg-primary border border-[#E8E4DC]">
+                <div className="text-2xl mb-2">🏆</div>
+                <div className="text-sm text-dyslexia-text-secondary">
+                  {badges.length} Badges
+                </div>
+              </div>
+              <div className="p-4 rounded-xl bg-dyslexia-bg-primary border border-[#E8E4DC]">
+                <div className="text-2xl mb-2">⭐</div>
+                <div className="text-sm text-dyslexia-text-secondary">
+                  {user.points} Points
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-dyslexia-bg-primary rounded-xl p-6 border border-[#E8E4DC]">
+              <p className="text-base text-dyslexia-text-primary font-semibold mb-2">
+                💡 Pro Tip
+              </p>
+              <p className="text-sm text-dyslexia-text-secondary leading-relaxed">
+                {user.streak_days === 0
+                  ? "Start your learning journey today! Even 10 minutes a day can make a huge difference in your progress."
+                  : user.courses_completed < 5
+                  ? "You're building great momentum! Complete just a few more levels to unlock exciting achievements."
+                  : user.badge >= 3
+                  ? "You're a superstar! Challenge yourself by exploring advanced topics and earning more badges."
+                  : "Keep up the fantastic work! Your consistency is creating lasting progress and growth."}
+              </p>
             </div>
           </div>
         </div>
