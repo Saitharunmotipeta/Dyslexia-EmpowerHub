@@ -348,14 +348,8 @@ export default function ProfilePage() {
               <p className="text-base text-dyslexia-text-primary font-semibold mb-2">
                 💡 Pro Tip
               </p>
-              <p className="text-sm text-dyslexia-text-secondary leading-relaxed">
-                {user.streak_days === 0
-                  ? "Start your learning journey today! Even 10 minutes a day can make a huge difference in your progress."
-                  : user.courses_completed < 5
-                  ? "You're building great momentum! Complete just a few more levels to unlock exciting achievements."
-                  : user.badge >= 3
-                  ? "You're a superstar! Challenge yourself by exploring advanced topics and earning more badges."
-                  : "Keep up the fantastic work! Your consistency is creating lasting progress and growth."}
+              <p className="text-sm text-dyslexia-text-secondary">
+                Keep practicing to unlock the next level and build your confidence.
               </p>
             </div>
           </div>
