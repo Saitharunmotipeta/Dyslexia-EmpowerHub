@@ -12,36 +12,9 @@ import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
 import { CompletionPopup } from "@/components/ui/CompletionPopup";
 import { assetUrl } from "@/constants/assets";
 
-const PACE_MIN = 50;
-const PACE_MAX = 150;
+const PACE_MIN = 20;
+const PACE_MAX = 140;
 const PACE_DEFAULT = 100;
-
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-  }
-}
-interface SpeechRecognitionEvent extends Event {
-  readonly results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onend: (() => void) | null;
-
-  start(): void;
-  stop(): void;
-}
-function getSpeechRecognition(): (new () => SpeechRecognition) | null {
-  if (typeof window === "undefined") return null;
-  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
-}
 
 export const dynamic = "force-dynamic";
 
@@ -66,12 +39,13 @@ export default function PracticePage() {
   const [showRetry, setShowRetry] = useState(false);
   const [showNextGif, setShowNextGif] = useState(false);
   const wordCompletedThisSessionRef = useRef(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const [typedInput, setTypedInput] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const transcriptRef = useRef<string>("");
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const stopRequestedRef = useRef(false);
 
   useEffect(() => {
     if (!checked) return;
@@ -157,51 +131,36 @@ export default function PracticePage() {
     [wordId]
   );
 
-  const submitSpokenRef = useRef(submitSpoken);
-  submitSpokenRef.current = submitSpoken;
-
   const startRecording = useCallback(async () => {
     setError(null);
     setResult(null);
-    transcriptRef.current = "";
+    setAudioBlob(null);
+    setAudioURL(null);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setRecording(true);
 
-      const SR = getSpeechRecognition();
-      if (SR) {
-        stopRequestedRef.current = false;
-        const recognition = new SR();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-          transcriptRef.current = Array.from(event.results)
-            .map((r) => r[0].transcript)
-            .join(" ")
-            .trim();
-        };
-        recognition.onerror = () => {};
-        recognition.onend = () => {
-          if (!stopRequestedRef.current) return;
-          stopRequestedRef.current = false;
-          const spoken = transcriptRef.current.trim();
-          if (spoken) {
-            submitSpokenRef.current(spoken);
-          } else {
-            setError("No speech detected. Type your answer below or try again.");
-          }
-        };
-        recognition.start();
-        recognitionRef.current = recognition;
-      } else {
-        setError("Speech recognition not supported in this browser. Use the text field.");
-      }
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      chunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        chunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+
+        setAudioBlob(blob);
+        setAudioURL(URL.createObjectURL(blob));
+
+        chunksRef.current = [];
+      };
+
+      recorder.start();
+      setRecording(true);
     } catch {
       setError("Microphone access denied or unavailable.");
     }
@@ -209,43 +168,93 @@ export default function PracticePage() {
 
   const stopRecording = useCallback(() => {
     const recorder = mediaRecorderRef.current;
+
     if (recorder && recorder.state === "recording") {
       recorder.stop();
       recorder.stream.getTracks().forEach((t) => t.stop());
     }
+
+    // Clean recorder refs
     mediaRecorderRef.current = null;
     streamRef.current = null;
-
-    const rec = recognitionRef.current;
-    if (rec) {
-      stopRequestedRef.current = true;
-      try {
-        rec.stop();
-      } catch {
-        // ignore
-      }
-      recognitionRef.current = null;
-      // Transcript will be read in recognition.onend after the browser delivers final results
-    } else {
-      setRecording(false);
-      const spoken = transcriptRef.current.trim();
-      if (spoken) {
-        submitSpoken(spoken);
-      } else {
-        setError("No speech detected. Type your answer below or try again.");
-      }
-    }
-
     setRecording(false);
-  }, [submitSpoken]);
 
-  const handleTextSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const input = form.querySelector<HTMLInputElement>('input[name="spoken"]');
-    const text = input?.value?.trim() ?? "";
-    submitSpoken(text);
-  };
+  }, []);
+
+/**
+ * Handles form submission when user types in spoken text and submits.
+ * Prevents default form submission, gets the spoken text from the input field,
+ * trims it and calls submitSpoken with the trimmed text.
+ */
+    const handleTextSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const input = form.querySelector<HTMLInputElement>('input[name="spoken"]');
+      const text = input?.value?.trim() ?? "";
+      submitSpoken(text);
+    };
+
+  async function submitAudio() {
+    if (!wordId) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      let data;
+
+      // ✅ PRIORITY: typed input
+      if (typedInput.trim()) {
+        const res = await practice.evaluate({
+          word_id: wordId,
+          recognized_text: typedInput,
+        });
+
+        data = res;
+
+      } else if (audioBlob) {
+        const formData = new FormData();
+        formData.append("file", audioBlob);
+        formData.append("word_id", String(wordId));
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/practice/evaluate`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error();
+
+        data = await res.json();
+
+      } else {
+        setError("Please record or type something.");
+        setLoading(false);
+        return;
+      }
+
+      setResult(data);
+
+      if (data.score >= 60) {
+        setShowWordCompletion(true);
+        setShowNextGif(true);
+      } else {
+        setShowRetry(true);
+      }
+
+      // ✅ cleanup after submit
+      setAudioBlob(null);
+      setAudioURL(null);
+      setTypedInput("");
+
+    } catch {
+      setError("Evaluation failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Play the expected word using browser TTS at current pace (backend-style: pace 50–150 → rate 0.5–1.5)
   const playWord = useCallback(() => {
@@ -323,48 +332,85 @@ export default function PracticePage() {
                 <span className="mr-2" aria-hidden>🔊</span>
                 Play word
               </Button>
+              {/* Record Button */}
               <Button
                 variant={recording ? "secondary" : "primary"}
                 onClick={recording ? stopRecording : startRecording}
                 disabled={!wordId}
                 aria-pressed={recording}
               >
-                {recording ? "Stop & submit" : "Record"}
+                {recording ? "Stop" : "Record"}
               </Button>
-            </div>
+              </div>
 
-            <div>
-              <label htmlFor="pace-slider" className="block text-sm font-medium text-dyslexia-text-primary leading-relaxed tracking-wide">
-                Playback pace (affects &quot;Play word&quot; speed): {pace}%
-              </label>
+              {/* Text Input (Unified) */}
               <input
-                id="pace-slider"
-                type="range"
-                min={PACE_MIN}
-                max={PACE_MAX}
-                value={pace}
-                onChange={(e) => setPace(Number(e.target.value))}
-                className="mt-2 w-full accent-[#6B8CA3]"
-                aria-valuenow={pace}
-                aria-valuemin={PACE_MIN}
-                aria-valuemax={PACE_MAX}
+                type="text"
+                placeholder="Type the word (optional)..."
+                value={typedInput}
+                onChange={(e) => setTypedInput(e.target.value)}
+                className="w-full rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary px-4 py-3 focus:border-dyslexia-accent-blue focus:outline-none focus:ring-2 focus:ring-dyslexia-accent-blue/20 transition-all duration-200 leading-relaxed tracking-wide"
               />
-              <p className="mt-1 text-sm text-dyslexia-text-secondary">Debounced value: {paceDebounced}%</p>
-            </div>
+
+              {/* Audio Preview */}
+              {audioURL && (
+                <div className="mt-4 space-y-3">
+                  <audio controls src={audioURL} className="w-full" />
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setResult(null);
+                        setAudioBlob(null);
+                        setAudioURL(null);
+                        startRecording();
+                      }}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Single Submit Button */}
+              <Button
+                onClick={submitAudio}
+                disabled={loading || !wordId}
+                className="w-full mt-3"
+              >
+                {loading ? "Processing..." : "Submit"}
+              </Button>
+
+              {/* Loading Indicator */}
+              {loading && (
+                <div className="flex items-center gap-2 text-sm text-dyslexia-text-secondary mt-2">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500"></div>
+                  Processing your response...
+                </div>
+              )}
+
+              {/* Playback Pace */}
+              <div>
+                <label className="block text-sm font-medium text-dyslexia-text-primary">
+                  Playback pace: {pace}%
+                </label>
+
+                <input
+                  type="range"
+                  min={PACE_MIN}
+                  max={PACE_MAX}
+                  value={pace}
+                  onChange={(e) => setPace(Number(e.target.value))}
+                  className="mt-2 w-full accent-[#6B8CA3]"
+                />
+
+                <p className="mt-1 text-sm text-dyslexia-text-secondary">
+                  Debounced value: {paceDebounced}%
+                </p>
+              </div>
           </>
         )}
-
-        <form onSubmit={handleTextSubmit} className="flex gap-2">
-          <input
-            type="text"
-            name="spoken"
-            placeholder="Or type the word here..."
-            className="flex-1 rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary px-4 py-3 focus:border-dyslexia-accent-blue focus:outline-none focus:ring-2 focus:ring-dyslexia-accent-blue/20 transition-all duration-200 leading-relaxed tracking-wide"
-          />
-          <Button type="submit" disabled={!wordId || loading}>
-            Submit
-          </Button>
-        </form>
 
         {error && (
           <p className="text-sm text-dyslexia-accent-purple" role="alert">

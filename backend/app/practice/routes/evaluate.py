@@ -1,36 +1,48 @@
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.auth.dependencies import get_current_user_id
 from app.learning.models.word import Word
 from app.learning.models.level_word import LevelWord
-from app.practice.schemas.eval_schema import EvaluationRequest
-from app.practice.schemas.eval_response import EvaluationResponse
 from app.practice.services.eval_service import evaluate_similarity
+from app.practice.services.speech_client import recognize_speech
+from app.practice.schemas.eval_response import EvaluationResponse
 
 
 def evaluate_practice(
-    payload: EvaluationRequest,
+    word_id: int = Form(...),
+    file: UploadFile = File(...),
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
 ) -> EvaluationResponse:
     """
-    PRACTICE = EVALUATION + ATTEMPT TRACKING
+    PRACTICE = AUDIO → SPEECH → EVALUATION + TRACKING
     """
 
-    word = db.query(Word).filter(Word.id == payload.word_id).first()
+    # -------------------------
+    # 1️⃣ Fetch word
+    # -------------------------
+    word = db.query(Word).filter(Word.id == word_id).first()
     if not word:
         raise HTTPException(status_code=404, detail="Word not found")
 
     expected = word.text
-    spoken = payload.recognized_text
 
     # -------------------------
-    # 2️⃣ Evaluate similarity
+    # 2️⃣ Speech recognition
+    # -------------------------
+    speech_result = recognize_speech(file.file)
+    spoken = speech_result.get("recognized_text", "")
+
+    # -------------------------
+    # 3️⃣ Evaluate similarity
     # -------------------------
     score, verdict = evaluate_similarity(expected, spoken)
 
+    # -------------------------
+    # 4️⃣ Track user progress
+    # -------------------------
     level_word = (
         db.query(LevelWord)
         .filter(
@@ -67,7 +79,10 @@ def evaluate_practice(
     level_word.is_mastered = level_word.highest_score >= 80
 
     db.commit()
-    
+
+    # -------------------------
+    # 5️⃣ Response
+    # -------------------------
     return EvaluationResponse(
         word_id=word.id,
         expected=expected,
