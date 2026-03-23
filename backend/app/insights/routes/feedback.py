@@ -1,5 +1,8 @@
 # app/feedback/routes/feedback_routes.py
-
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from app.database.connection import get_db
+from app.auth.dependencies import get_current_user_id
 from app.insights.schemas import FeedbackIn
 from app.insights.services.trends import trend_analysis
 from app.insights.services.pattern_service import detect_error_pattern
@@ -22,10 +25,9 @@ def analyze_pattern_handler(data: FeedbackIn, user_id: int):
             expected=data.text,
             spoken=data.spoken,
             content_type=data.content_type,
-            syllables=data.syllables
         )
     }
 
 
-def generate_feedback_handler(data: FeedbackIn, user_id: int):
-    return generate_feedback(data)
+def generate_feedback_handler(data: FeedbackIn,db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)):
+    return generate_feedback(data, db, user_id)

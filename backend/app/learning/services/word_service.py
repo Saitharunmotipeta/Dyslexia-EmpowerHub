@@ -31,9 +31,6 @@ def get_words_for_level(db: Session, user_id: int, level_id: int):
         mastery_score = lw.mastery_score if lw else 0.0
         is_mastered = lw.is_mastered if lw else False
 
-        print(
-            f"📘 Word={w.text} | attempts={attempts} | score={mastery_score} | mastered={is_mastered}"
-        )
 
         result.append(
             {

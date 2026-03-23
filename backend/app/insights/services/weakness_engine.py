@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-
 from app.mock.models.attempt import MockAttempt
 
 
@@ -48,10 +47,37 @@ def generate_weakness_heatmap(db: Session, user_id: int):
             total += 1
 
     if total == 0:
-        return counters
+        return {
+            "heatmap": counters,
+            "top_weakness": None,
+            "message": None
+        }
 
-    # convert to percentage
-    return {
+    # 🔥 convert to percentage
+    percentages = {
         k: round((v / total) * 100, 2)
         for k, v in counters.items()
+    }
+
+    # 🔥 identify top weakness
+    top_weakness = max(percentages, key=percentages.get)
+
+    # 🔥 ignore weak signals (<15%)
+    if percentages[top_weakness] < 15:
+        top_weakness = None
+
+    # 🔥 map to actionable message (VERY IMPORTANT)
+    weakness_messages = {
+        "initial_sound": "You often miss starting sounds. Begin words slowly.",
+        "vowel": "You confuse vowel sounds. Open your mouth clearly.",
+        "final_sound": "You drop ending sounds. finish words fully.",
+        "far_off": "Some words are very different. Break them into parts.",
+    }
+
+    message = weakness_messages.get(top_weakness) if top_weakness else None
+
+    return {
+        "heatmap": percentages,
+        "top_weakness": top_weakness,
+        "message": message
     }

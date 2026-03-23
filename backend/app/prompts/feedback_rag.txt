@@ -1,19 +1,12 @@
 Expected: {expected}
 Spoken: {spoken}
 
-This is a pronunciation attempt.
-
-Explain:
-- what part is different
-- how to fix using simple mouth/tongue action
+Say what sound is different.
+Say how to fix using mouth.
 
 Rules:
-- max 2 lines
-- max 10 words per line
-- use very simple words
-- give physical action (tap, blow, press, etc.)
-- do NOT explain theory
-- do NOT compare letters
-- do NOT mention spelling
+- 2 lines only
+- simple words
+- no spelling explanation
+- no theory
 - be supportive
-Speak like a friendly teacher helping a beginner.

@@ -1,7 +1,12 @@
 from app.insights.schemas import FeedbackIn, FeedbackOut
+from fastapi import Depends
+from app.database.connection import get_db
+from app.auth.dependencies import get_current_user_id
 from app.insights.services.trends import trend_analysis
 from app.insights.services.pattern_service import detect_error_pattern
 from app.insights.services.rag_service import generate_reasoning
+from app.insights.services.weakness_engine import generate_weakness_heatmap
+from sqlalchemy.orm import Session
 
 
 # 🔥 RESPONSE CLEANER (DYSLEXIA FRIENDLY)
@@ -37,7 +42,7 @@ def is_bad_response(text: str) -> bool:
     return any(word in text.lower() for word in bad_keywords)
 
 
-def generate_feedback(data: FeedbackIn) -> FeedbackOut:
+def generate_feedback(data: FeedbackIn, db:Session=Depends(get_db) , user_id: int = Depends(get_current_user_id)) -> FeedbackOut:
 
     score = data.score
     attempts = data.attempts
@@ -113,6 +118,11 @@ def generate_feedback(data: FeedbackIn) -> FeedbackOut:
     # -------------------------
 
     feedback_msgs = list(dict.fromkeys(feedback_msgs))  # remove duplicates
+
+    weakness_data = generate_weakness_heatmap(db, user_id)
+
+    if weakness_data["message"]:
+        feedback_msgs.append(weakness_data["message"])
 
     # -------------------------
     # Confidence Tip

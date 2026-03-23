@@ -1,10 +1,17 @@
 from app.insights.schemas import FeedbackIn, RecommendationOut
+from app.insights.services.word_generator import generate_similar_words
+
+
+def extract_score(value):
+    if isinstance(value, dict):
+        return value.get("percentage", 0)
+    return value
 
 
 def recommend_next_step(
     data: FeedbackIn,
     weakness_heatmap: dict | None = None,
-    confidence_index: dict | None = None
+    pattern: dict | None = None
 ) -> RecommendationOut:
 
     score = data.score
@@ -22,165 +29,96 @@ def recommend_next_step(
     }
 
     # -------------------------
-    # Weakness signals
+    # 🔥 STEP 1: ALWAYS TRY WORD GENERATION FIRST
     # -------------------------
 
-    vowel_issue = weakness_heatmap and weakness_heatmap.get("vowel", 0) > 25
-    start_issue = weakness_heatmap and weakness_heatmap.get("initial_sound", 0) > 25
-    end_issue = weakness_heatmap and weakness_heatmap.get("final_sound", 0) > 25
+    words = generate_similar_words(
+        expected=data.text,
+        spoken=data.spoken,
+        pattern=pattern
+    )
 
-    confidence_level = None
-    if confidence_index:
-        confidence_level = confidence_index.get("confidence_level")
-
-    # -------------------------
-    # Excellent performance
-    # -------------------------
-
-    if score >= 85:
-
-        headline = "Great progress — you're ready to move forward 🎯"
-
-        if confidence_level == "advanced":
-            headline = "Excellent pronunciation — keep building fluency 🌟"
-
+    if words and isinstance(words, list) and len(words) > 0:
         return RecommendationOut(
-            recommendation="advance_level",
-            headline=headline,
-            explanation="Your pronunciation shows strong clarity and confidence.",
-            confidence=0.92,
-            next_steps=[
-                "Try a harder word or sentence",
-                "Use it in conversation",
-                "Return later to reinforce it"
-            ],
+            recommendation="practice_generated_words",
+            headline="Practice these sounds 🔁",
+            explanation="These target your mistake directly.",
+            confidence=0.95,
+            next_steps=words,
             metrics_used=metrics
         )
 
     # -------------------------
-    # Small improvements needed
+    # 🔥 STEP 2: WEAKNESS EXTRACTION
     # -------------------------
+    focus = "general"
+    focus_score = 0
 
-    if score >= 70:
-
-        tips = [
-            "Replay TTS in slow mode",
-            "Repeat syllable-by-syllable",
-            "Record again calmly"
+    if weakness_heatmap:
+        valid_keys = [
+            k for k, v in weakness_heatmap.items()
+            if isinstance(v, (int, float)) or (isinstance(v, dict) and "percentage" in v)
         ]
 
-        if vowel_issue:
-            tips.insert(0, "Focus on vowel sounds — stretch them slightly")
+        if valid_keys:
+            focus = max(
+                valid_keys,
+                key=lambda k: extract_score(weakness_heatmap[k])
+            )
+            focus_score = extract_score(weakness_heatmap[focus])
 
+    # -------------------------
+    # 🔥 STEP 3: HIGH SCORE
+    # -------------------------
+    if score >= 85:
         return RecommendationOut(
-            recommendation="slow_repeat",
-            headline="Almost there — slow it down slightly ✨",
-            explanation="Repeating slowly improves sound clarity.",
-            confidence=0.82,
-            next_steps=tips,
+            recommendation="advance_level",
+            headline="Great progress — move ahead 🚀",
+            explanation="Your pronunciation is clear and confident.",
+            confidence=0.9,
+            next_steps=["Try a longer sentence", "Focus on natural rhythm", "Record yourself and compare"],
             metrics_used=metrics
         )
 
     # -------------------------
-    # Sentence segmentation
+    # 🔥 STEP 4: FATIGUE
     # -------------------------
-
-    if content_type in ["phrase", "sentence"] and score < 60:
-
-        return RecommendationOut(
-            recommendation="segment_practice",
-            headline="Break the sentence into smaller parts 🧩",
-            explanation="Practicing one word at a time improves fluency.",
-            confidence=0.88,
-            next_steps=[
-                "Say one word at a time",
-                "Combine two words slowly",
-                "Speak the full sentence again"
-            ],
-            metrics_used=metrics
-        )
-
-    # -------------------------
-    # Fatigue detection
-    # -------------------------
-
     if attempts >= 4:
-
         return RecommendationOut(
             recommendation="guided_break",
-            headline="Let’s reset and try calmly 💙",
-            explanation="Taking a short break helps your speech reset.",
-            confidence=0.80,
+            headline="Take a short reset 💙",
+            explanation="Break helps improve clarity.",
+            confidence=0.82,
             next_steps=[
-                "Take a short pause",
-                "Listen carefully to the example audio",
-                "Try again when relaxed"
-            ],
+                    "Say it slowly",
+                    "Focus on each sound",
+                    "Try again calmly"
+                ],
             metrics_used=metrics
         )
 
     # -------------------------
-    # Weakness-based hints
+    # 🔥 STEP 5: MID RANGE
     # -------------------------
-
-    if vowel_issue:
-
+    if score >= 60:
         return RecommendationOut(
-            recommendation="vowel_focus",
-            headline="Focus on vowel clarity 🔊",
-            explanation="Your vowel sounds need a bit more precision.",
-            confidence=0.75,
-            next_steps=[
-                "Stretch the vowel sound slowly",
-                "Repeat the word three times",
-                "Compare with the audio example"
-            ],
+            recommendation="slow_repeat",
+            headline="Almost there — refine it ✨",
+            explanation="Small adjustments will help.",
+            confidence=0.82,
+            next_steps=["Focus on the {} sound.".format(focus) if focus != "general" else "Try saying it slowly and clearly. Focus on each sound.", "Try again calmly", "Record yourself and compare"],
             metrics_used=metrics
         )
-
-    if start_issue:
-
-        return RecommendationOut(
-            recommendation="initial_sound_focus",
-            headline="Start the word clearly 🎙️",
-            explanation="Beginning sounds help listeners understand the word.",
-            confidence=0.74,
-            next_steps=[
-                "Emphasize the first sound",
-                "Say the first syllable slowly",
-                "Repeat the full word again"
-            ],
-            metrics_used=metrics
-        )
-
-    if end_issue:
-
-        return RecommendationOut(
-            recommendation="final_sound_focus",
-            headline="Finish the word fully ✨",
-            explanation="Completing the ending sound improves clarity.",
-            confidence=0.74,
-            next_steps=[
-                "Slow the final syllable",
-                "Pause slightly before finishing",
-                "Repeat again"
-            ],
-            metrics_used=metrics
-        )
+    
 
     # -------------------------
-    # Default guidance
+    # 🔥 STEP 6: FALLBACK
     # -------------------------
-
     return RecommendationOut(
         recommendation="guided_retry",
-        headline="Keep practicing — you're improving 💪",
-        explanation="Repetition strengthens pronunciation memory.",
-        confidence=0.76,
-        next_steps=[
-            "Replay the audio",
-            "Repeat slowly",
-            "Record again when ready"
-        ],
+        headline="Keep going 💪",
+        explanation="Practice step by step.",
+        confidence=0.75,
+        next_steps=words if words else ["Try saying it slowly and clearly. Focus on each sound.", "Try again calmly", "Record yourself and compare"],
         metrics_used=metrics
     )

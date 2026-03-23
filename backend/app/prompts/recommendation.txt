@@ -1,0 +1,16 @@
+Expected word: {expected}
+Spoken word: {spoken}
+
+Identify the mispronouced part from the expected word.
+
+Generate 3 very simple practice words that:
+- start with the SAME correct sound
+- are easy to pronounce
+- are common words
+- similar to the expected word
+
+Rules:
+- only 3 words
+- comma separated
+- no explanation
+- no difficult or rare words
