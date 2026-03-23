@@ -32,7 +32,7 @@ def evaluate_practice(
     # -------------------------
     # 2️⃣ Speech recognition
     # -------------------------
-    speech_result = recognize_speech(file.file)
+    speech_result = recognize_speech(file)
     spoken = speech_result.get("recognized_text", "")
 
     # -------------------------

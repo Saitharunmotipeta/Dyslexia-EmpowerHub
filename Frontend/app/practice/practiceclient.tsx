@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { practice, learning, ApiError, type EvaluationResponse, type WordStatusOut } from "@/lib/api";
+import { practice, learning, feedback, mapFeedbackResponse, ApiError, type WordStatusOut, type FeedbackResult } from "@/lib/api";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ import { assetUrl } from "@/constants/assets";
 const PACE_MIN = 20;
 const PACE_MAX = 140;
 const PACE_DEFAULT = 100;
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default function PracticePage() {
   const [pace, setPace] = useState(PACE_DEFAULT);
   const paceDebounced = useDebounce(pace, 300);
   const [recording, setRecording] = useState(false);
-  const [result, setResult] = useState<EvaluationResponse | null>(null);
+  const [result, setResult] = useState<FeedbackResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [wordLoading, setWordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export default function PracticePage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const [typedInput, setTypedInput] = useState("");
+  // const [typedInput, setTypedInput] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -96,41 +97,6 @@ export default function PracticePage() {
     return () => clearTimeout(t);
   }, [showNextGif, levelId, wordId, router]);
 
-  const submitSpoken = useCallback(
-    async (spoken: string) => {
-      if (!wordId) {
-        setError("Open this page from Learning (Practice on a word).");
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      setShowWordCompletion(false);
-      setShowRetry(false);
-      setShowNextGif(false);
-      try {
-        const res = await practice.evaluate({
-          word_id: wordId,
-          recognized_text: spoken || " ",
-        });
-        setResult(res);
-        if (res.score >= 60) {
-          setShowWordCompletion(true);
-          setShowNextGif(true);
-          wordCompletedThisSessionRef.current = true;
-        } else {
-          if (!wordCompletedThisSessionRef.current) {
-            setShowRetry(true);
-          }
-        }
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Evaluation failed");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [wordId]
-  );
-
   const startRecording = useCallback(async () => {
     setError(null);
     setResult(null);
@@ -181,19 +147,6 @@ export default function PracticePage() {
 
   }, []);
 
-/**
- * Handles form submission when user types in spoken text and submits.
- * Prevents default form submission, gets the spoken text from the input field,
- * trims it and calls submitSpoken with the trimmed text.
- */
-    const handleTextSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      const form = e.currentTarget;
-      const input = form.querySelector<HTMLInputElement>('input[name="spoken"]');
-      const text = input?.value?.trim() ?? "";
-      submitSpoken(text);
-    };
-
   async function submitAudio() {
     if (!wordId) return;
 
@@ -201,55 +154,92 @@ export default function PracticePage() {
     setError(null);
 
     try {
-      let data;
+      // -----------------------------
+      // STEP 1: EVALUATE (audio → score)
+      // -----------------------------
+      const formData = new FormData();
 
-      // ✅ PRIORITY: typed input
-      if (typedInput.trim()) {
-        const res = await practice.evaluate({
-          word_id: wordId,
-          recognized_text: typedInput,
-        });
+      formData.append("word_id", String(wordId));
+      formData.append(
+        "file",
+        audioBlob || new Blob([""], { type: "audio/webm" }),
+        "audio.webm"
+      );
 
-        data = res;
+      const evalRes = await fetch(`${API}/practice/evaluate`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
-      } else if (audioBlob) {
-        const formData = new FormData();
-        formData.append("file", audioBlob);
-        formData.append("word_id", String(wordId));
-
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/practice/evaluate`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
-        });
-
-        if (!res.ok) throw new Error();
-
-        data = await res.json();
-
-      } else {
-        setError("Please record or type something.");
-        setLoading(false);
-        return;
+      if (!evalRes.ok) {
+        throw new Error(await evalRes.text());
       }
 
-      setResult(data);
+      const evalData = await evalRes.json();
 
-      if (data.score >= 60) {
+      // -----------------------------
+      // STEP 2: AGGREGATE (intelligence layer)
+      // -----------------------------
+      const aggRes = await fetch(`${API}/feedback/aggregate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          mode: "static",
+          content_type: "word",
+          text: evalData.expected,
+          spoken: evalData.recognized,
+          score: evalData.score,
+          attempts: 1,
+          pace: 0.9,
+        }),
+      });
+
+      if (!aggRes.ok) {
+        throw new Error(await aggRes.text());
+      }
+
+      const aggData = await aggRes.json();
+
+      // -----------------------------
+      // STEP 3: MAP → UI MODEL (FeedbackResult)
+      // -----------------------------
+      const clean: FeedbackResult = {
+        expected: evalData.expected,
+        spoken: evalData.recognized,
+        score: evalData.score,
+
+        pattern: aggData.pattern?.pattern?.code,
+        feedback: aggData.feedback?.feedback || [],
+        recommendation: aggData.recommendation?.headline,
+        nextSteps: aggData.recommendation?.next_steps || [],
+      };
+
+      setResult(clean);
+
+      // -----------------------------
+      // STEP 4: UI FLOW
+      // -----------------------------
+      if (evalData.score >= 60) {
         setShowWordCompletion(true);
         setShowNextGif(true);
       } else {
         setShowRetry(true);
       }
 
-      // ✅ cleanup after submit
+      // -----------------------------
+      // STEP 5: CLEANUP
+      // -----------------------------
       setAudioBlob(null);
       setAudioURL(null);
-      setTypedInput("");
 
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Evaluation failed");
     } finally {
       setLoading(false);
@@ -344,13 +334,13 @@ export default function PracticePage() {
               </div>
 
               {/* Text Input (Unified) */}
-              <input
+              {/* <input
                 type="text"
                 placeholder="Type the word (optional)..."
                 value={typedInput}
                 onChange={(e) => setTypedInput(e.target.value)}
                 className="w-full rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary px-4 py-3 focus:border-dyslexia-accent-blue focus:outline-none focus:ring-2 focus:ring-dyslexia-accent-blue/20 transition-all duration-200 leading-relaxed tracking-wide"
-              />
+              /> */}
 
               {/* Audio Preview */}
               {audioURL && (
@@ -436,29 +426,74 @@ export default function PracticePage() {
         >
           Try again to improve your mastery
         </CompletionPopup>
-        {result && (
-          <div className="rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary p-4 transition-all duration-300">
-            <p className="text-sm font-medium text-dyslexia-text-primary leading-relaxed tracking-wide">Transcript</p>
-            <p className="mt-1 text-lg leading-relaxed tracking-wide">
-              Expected: <span className="font-semibold text-dyslexia-text-primary">{result.expected}</span>
-            </p>
-            <p className="mt-1 text-lg leading-relaxed tracking-wide">
-              You said:{" "}
-              <span
-                className={
-                  result.is_correct
-                    ? "font-semibold text-dyslexia-accent-green"
-                    : "font-semibold text-dyslexia-accent-blue"
-                }
-              >
-                {result.recognized || "(empty)"}
-              </span>
-            </p>
-            <p className="mt-2 text-sm text-dyslexia-text-secondary">
-              Score: {result.score}% · {result.is_correct ? "Correct" : "Incorrect"}
-            </p>
-          </div>
-        )}
+          {result && (
+            <div className="rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary p-4 space-y-4">
+
+              {/* Expected vs Spoken */}
+              <div>
+                <p className="text-sm text-gray-500">Expected</p>
+                <p className="text-lg font-semibold">{result.expected}</p>
+
+                <p className="text-sm text-gray-500 mt-2">You said</p>
+                <p className="text-lg font-semibold text-blue-600">
+                  {result.spoken}
+                </p>
+              </div>
+
+              {/* Score */}
+              <p className={`font-semibold ${
+                result.score > 80 ? "text-green-600" :
+                result.score > 50 ? "text-yellow-600" :
+                "text-red-600"
+              }`}>
+                Score: {result.score}%
+              </p>
+
+              {/* Pattern */}
+              {result.pattern && (
+                <p className="text-sm text-purple-600">
+                  Pattern: {result.pattern.replace("_", " ")}
+                </p>
+              )}
+
+              {/* Feedback */}
+              <div>
+                <p className="font-semibold text-sm mb-1">Feedback</p>
+                <ul className="list-disc ml-5 space-y-1 text-sm">
+                  {result.feedback.map((f, i) => (
+                    <li key={i}>{f}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Recommendation */}
+              {result.recommendation && (
+                <div>
+                  <p className="font-semibold text-sm">Recommendation</p>
+                  <p className="text-sm text-purple-700">
+                    {result.recommendation}
+                  </p>
+                </div>
+              )}
+
+              {/* Next Steps */}
+              {result.nextSteps.length > 0 && (
+                <div>
+                  <p className="font-semibold text-sm mb-1">Practice Words</p>
+                  <div className="flex flex-wrap gap-2">
+                    {result.nextSteps.map((word, i) => (
+                      <span
+                        key={i}
+                        className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                      >
+                        {word}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
       </Card>
     </div>
   );

@@ -298,6 +298,30 @@ export const feedback = {
     }),
 };
 
+export function mapFeedbackResponse(data: any): FeedbackResult {
+  return {
+    expected: data.recommendation?.metrics_used?.text,
+    spoken: data.recommendation?.metrics_used?.spoken,
+    score: data.feedback?.score,
+
+    pattern: data.pattern?.pattern?.code,
+    feedback: data.feedback?.feedback || [],
+    recommendation: data.recommendation?.headline,
+    nextSteps: data.recommendation?.next_steps || [],
+  };
+}
+
+export interface FeedbackResult {
+  expected: string;
+  spoken: string;
+  score: number;
+
+  pattern?: string;
+  feedback: string[];
+  recommendation?: string;
+  nextSteps: string[];
+}
+
 // ─── Mock ─────────────────────────────────────────────────────────────────
 export interface MockWord {
   id: number;
