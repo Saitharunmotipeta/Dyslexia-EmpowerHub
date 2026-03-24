@@ -246,6 +246,32 @@ export default function PracticePage() {
     }
   }
 
+  function getAlignment(expected: string, spoken: string) {
+    const exp = expected.toLowerCase().split(" ");
+    const spk = spoken.toLowerCase().split(" ");
+    const maxLen = Math.max(exp.length, spk.length);
+
+    const alignment = [];
+
+    for (let i = 0; i < maxLen; i++) {
+      if (exp[i] === spk[i]) {
+        alignment.push({ type: "correct", expected: exp[i], spoken: spk[i] });
+      } else if (!spk[i]) {
+        alignment.push({ type: "missing", expected: exp[i] });
+      } else if (!exp[i]) {
+        alignment.push({ type: "extra", spoken: spk[i] });
+      } else {
+        alignment.push({
+          type: "substitution",
+          expected: exp[i],
+          spoken: spk[i],
+        });
+      }
+    }
+
+    return alignment;
+  }
+
   // Play the expected word using browser TTS at current pace (backend-style: pace 50–150 → rate 0.5–1.5)
   const playWord = useCallback(() => {
     const word = currentWord?.text ?? result?.expected;
@@ -430,15 +456,49 @@ export default function PracticePage() {
             <div className="rounded-2xl border border-[#E8E4DC] bg-dyslexia-bg-secondary p-4 space-y-4">
 
               {/* Expected vs Spoken */}
-              <div>
-                <p className="text-sm text-gray-500">Expected</p>
-                <p className="text-lg font-semibold">{result.expected}</p>
+              {/* 🔥 Expected vs Spoken */}
+            <div>
+              {(() => {
+                const alignment = getAlignment(result.expected, result.spoken);
 
-                <p className="text-sm text-gray-500 mt-2">You said</p>
-                <p className="text-lg font-semibold text-blue-600">
-                  {result.spoken}
-                </p>
-              </div>
+                return (
+                  <>
+                    {/* Expected */}
+                    <p className="text-sm text-gray-500">Expected</p>
+                    <div className="flex flex-wrap gap-2">
+                      {alignment.map((item, i) => (
+                        <span key={i} className="px-2 py-1 rounded bg-gray-100">
+                          {item.expected || "-"}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Spoken */}
+                    <p className="text-sm text-gray-500 mt-2">You said</p>
+                    <div className="flex flex-wrap gap-2">
+                      {alignment.map((item, i) => {
+                        let color = "bg-gray-100";
+
+                        if (item.type === "correct") color = "bg-green-200";
+                        if (item.type === "substitution") color = "bg-red-200";
+                        if (item.type === "missing") color = "bg-yellow-200";
+                        if (item.type === "extra") color = "bg-purple-200";
+
+                        return (
+                          <span key={i} className={`px-2 py-1 rounded ${color}`}>
+                            {item.spoken || "-"}
+                          </span>
+                        );
+                      })}
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-2">
+                      Green = correct, Red = wrong, Yellow = missing, Purple = extra
+                    </p>
+                  </>
+                );
+              })()}
+            </div>
 
               {/* Score */}
               <p className={`font-semibold ${
