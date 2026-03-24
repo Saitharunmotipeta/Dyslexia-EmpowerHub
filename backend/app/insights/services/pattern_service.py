@@ -3,11 +3,20 @@
 import difflib
 
 
-def detect_error_pattern(expected: str, spoken: str, content_type: str, syllables: str | None = None):
+def detect_error_pattern(
+    expected: str,
+    spoken: str,
+    content_type: str,
+    syllables: str | None = None,
+    alignment=None,   # 🔥 NEW
+):
 
     spoken = (spoken or "").strip().lower()
     expected = (expected or "").strip().lower()
 
+    # -------------------------
+    # SILENCE CHECK
+    # -------------------------
     if spoken == "":
         return {
             "code": "silence",
@@ -15,6 +24,9 @@ def detect_error_pattern(expected: str, spoken: str, content_type: str, syllable
             "tip": "Check your microphone and try speaking a little louder 🙂",
         }
 
+    # -------------------------
+    # WORD LOGIC (KEEP AS IS)
+    # -------------------------
     if content_type == "word":
 
         if len(spoken.split()) > 1:
@@ -67,28 +79,50 @@ def detect_error_pattern(expected: str, spoken: str, content_type: str, syllable
             "tip": f"Try practicing slowly: {syllables.replace('-', ' • ') if syllables else 'one part at a time'}",
         }
 
+    # -------------------------
+    # 🔥 PHRASE / SENTENCE (UPGRADED)
+    # -------------------------
     if content_type in ["phrase", "sentence"]:
 
-        expected_words = expected.split()
-        spoken_words = spoken.split()
+        # 🔥 USE ALIGNMENT (NEW LOGIC)
+        if alignment:
+            types = [item["type"] for item in alignment]
 
-        missing = [w for w in expected_words if w not in spoken_words]
-        extra = [w for w in spoken_words if w not in expected_words]
+            if "missing" in types:
+                missing_words = [
+                    item["expected"]
+                    for item in alignment
+                    if item["type"] == "missing"
+                ]
+                return {
+                    "code": "missing_words",
+                    "message": "Some words were skipped.",
+                    "tip": f"Try including: {', '.join(missing_words)}",
+                }
 
-        if missing:
+            if "extra" in types:
+                return {
+                    "code": "extra_words",
+                    "message": "Some additional words were spoken.",
+                    "tip": "Try saying exactly what is written.",
+                }
+
+            if "substitution" in types:
+                return {
+                    "code": "word_mismatch",
+                    "message": "Some words were pronounced differently.",
+                    "tip": "Focus on correcting the specific words.",
+                }
+
             return {
-                "code": "missing_words",
-                "message": "A few words were skipped.",
-                "tip": f"Try including: {', '.join(missing)}",
+                "code": "correct",
+                "message": "The sentence was spoken correctly.",
+                "tip": "Great job! Keep practicing for fluency.",
             }
 
-        if extra:
-            return {
-                "code": "extra_words",
-                "message": "Some additional words were spoken.",
-                "tip": "Try saying exactly what is written.",
-            }
-
+        # -------------------------
+        # FALLBACK (if no alignment)
+        # -------------------------
         similarity = difflib.SequenceMatcher(None, expected, spoken).ratio()
 
         if similarity > 0.8:
@@ -104,6 +138,9 @@ def detect_error_pattern(expected: str, spoken: str, content_type: str, syllable
             "tip": "Try speaking it slowly and clearly.",
         }
 
+    # -------------------------
+    # DEFAULT
+    # -------------------------
     return {
         "code": "normal",
         "message": "Your speech matched closely.",

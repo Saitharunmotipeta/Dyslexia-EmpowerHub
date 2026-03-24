@@ -14,17 +14,14 @@ def clean_response(text: str) -> str:
     if not text:
         return ""
 
-    # 🔥 remove empty lines
     lines = [line.strip() for line in text.split("\n") if line.strip()]
 
-    # 🔥 remove useless starter lines
     filtered = []
     for line in lines:
         if "let's fix" in line.lower():
             continue
         filtered.append(line)
 
-    # 🔥 keep only meaningful lines
     clean_lines = []
     for line in filtered[:2]:
         words = line.split()[:30]
@@ -32,17 +29,22 @@ def clean_response(text: str) -> str:
 
     return "\n".join(clean_lines)
 
-# 🔥 SAFETY FILTER
+
 def is_bad_response(text: str) -> bool:
     if not text:
         return True
 
     bad_keywords = ["spell", "letter", "typed", "spelling"]
-
     return any(word in text.lower() for word in bad_keywords)
 
 
-def generate_feedback(data: FeedbackIn, db:Session=Depends(get_db) , user_id: int = Depends(get_current_user_id)) -> FeedbackOut:
+# 🔥 UPDATED: ADD alignment
+def generate_feedback(
+    data: FeedbackIn,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+    alignment=None   # 🔥 NEW
+) -> FeedbackOut:
 
     score = data.score
     attempts = data.attempts
@@ -53,7 +55,8 @@ def generate_feedback(data: FeedbackIn, db:Session=Depends(get_db) , user_id: in
     pattern = detect_error_pattern(
         expected=data.text,
         spoken=data.spoken,
-        content_type=content_type
+        content_type=content_type,
+        alignment=alignment   # 🔥 NEW
     )
 
     feedback_msgs = []
@@ -79,10 +82,40 @@ def generate_feedback(data: FeedbackIn, db:Session=Depends(get_db) , user_id: in
         feedback_msgs.append("Take your time. Break it into parts and try again 🧠")
 
     # -------------------------
-    # 🔥 AI REASONING (CONTROLLED)
+    # 🔥 NEW: ALIGNMENT-BASED FEEDBACK (CORE FIX)
     # -------------------------
 
-    if pattern and pattern.get("code") != "normal":
+    mistakes = []
+
+    if alignment:
+        for item in alignment:
+            if item["type"] == "substitution":
+                if item.get("expected") and item.get("spoken"):
+                    feedback_msgs.append(
+                        f"You said '{item['spoken']}' instead of '{item['expected']}'"
+                    )
+                    mistakes.append(item["expected"])
+
+            elif item["type"] == "missing":
+                feedback_msgs.append(
+                    f"You missed the word '{item['expected']}'"
+                )
+                mistakes.append(item["expected"])
+
+            elif item["type"] == "extra":
+                feedback_msgs.append(
+                    f"You added an extra word '{item['spoken']}'"
+                )
+
+        # 🔥 Add summary line
+        if mistakes:
+            feedback_msgs.append("Focus on correcting specific words.")
+
+    # -------------------------
+    # 🔥 OPTIONAL AI REASONING (SECONDARY)
+    # -------------------------
+
+    if pattern and pattern.get("code") not in ["normal", "correct"]:
 
         try:
             rag_explanation = generate_reasoning(
@@ -91,22 +124,16 @@ def generate_feedback(data: FeedbackIn, db:Session=Depends(get_db) , user_id: in
                 pattern=pattern
             )
 
-            # 🔥 CLEAN + FILTER
             rag_explanation = clean_response(rag_explanation)
 
-            if is_bad_response(rag_explanation):
-                raise Exception("Bad AI output")
-
-            feedback_msgs.append(rag_explanation)
+            if not is_bad_response(rag_explanation):
+                feedback_msgs.append(rag_explanation)
 
         except Exception:
-            # 🔥 SAFE FALLBACK (CRITICAL FOR PROD)
-            feedback_msgs.append(
-                "Some sounds are different.\nTry saying it slowly and clearly."
-            )
+            pass  # safe ignore
 
     # -------------------------
-    # 🔥 TREND (LOW PRIORITY)
+    # TREND
     # -------------------------
 
     if trend:
@@ -114,10 +141,14 @@ def generate_feedback(data: FeedbackIn, db:Session=Depends(get_db) , user_id: in
         feedback_msgs.append(clean_response(trend["tip"]))
 
     # -------------------------
-    # 🔥 FINAL NORMALIZATION
+    # REMOVE DUPLICATES
     # -------------------------
 
-    feedback_msgs = list(dict.fromkeys(feedback_msgs))  # remove duplicates
+    feedback_msgs = list(dict.fromkeys(feedback_msgs))
+
+    # -------------------------
+    # WEAKNESS HEATMAP
+    # -------------------------
 
     weakness_data = generate_weakness_heatmap(db, user_id)
 

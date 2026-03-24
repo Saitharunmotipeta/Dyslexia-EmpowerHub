@@ -11,7 +11,8 @@ def extract_score(value):
 def recommend_next_step(
     data: FeedbackIn,
     weakness_heatmap: dict | None = None,
-    pattern: dict | None = None
+    pattern: dict | None = None,
+    mistakes: list[str] | None = None   # 🔥 NEW
 ) -> RecommendationOut:
 
     score = data.score
@@ -28,10 +29,24 @@ def recommend_next_step(
         "content_type": content_type
     }
 
-    # -------------------------
-    # 🔥 STEP 1: ALWAYS TRY WORD GENERATION FIRST
-    # -------------------------
+    mistakes = mistakes or []
 
+    # -------------------------
+    # 🔥 STEP 1: USE MISTAKES FIRST (CORE FIX)
+    # -------------------------
+    if mistakes:
+        return RecommendationOut(
+            recommendation="practice_target_words",
+            headline="Practice these words 🔁",
+            explanation="These words were mispronounced.",
+            confidence=0.95,
+            next_steps=mistakes[:3],
+            metrics_used=metrics
+        )
+
+    # -------------------------
+    # 🔥 STEP 2: FALLBACK WORD GENERATION
+    # -------------------------
     words = generate_similar_words(
         expected=data.text,
         spoken=data.spoken,
@@ -42,14 +57,14 @@ def recommend_next_step(
         return RecommendationOut(
             recommendation="practice_generated_words",
             headline="Practice these sounds 🔁",
-            explanation="These target your mistake directly.",
-            confidence=0.95,
+            explanation="These target your mistake indirectly.",
+            confidence=0.85,
             next_steps=words,
             metrics_used=metrics
         )
 
     # -------------------------
-    # 🔥 STEP 2: WEAKNESS EXTRACTION
+    # 🔥 STEP 3: WEAKNESS EXTRACTION
     # -------------------------
     focus = "general"
     focus_score = 0
@@ -68,7 +83,7 @@ def recommend_next_step(
             focus_score = extract_score(weakness_heatmap[focus])
 
     # -------------------------
-    # 🔥 STEP 3: HIGH SCORE
+    # 🔥 STEP 4: HIGH SCORE
     # -------------------------
     if score >= 85:
         return RecommendationOut(
@@ -76,12 +91,16 @@ def recommend_next_step(
             headline="Great progress — move ahead 🚀",
             explanation="Your pronunciation is clear and confident.",
             confidence=0.9,
-            next_steps=["Try a longer sentence", "Focus on natural rhythm", "Record yourself and compare"],
+            next_steps=[
+                "Try saying the full sentence smoothly",
+                "Focus on natural rhythm",
+                "Record yourself and compare"
+            ],
             metrics_used=metrics
         )
 
     # -------------------------
-    # 🔥 STEP 4: FATIGUE
+    # 🔥 STEP 5: FATIGUE
     # -------------------------
     if attempts >= 4:
         return RecommendationOut(
@@ -90,15 +109,15 @@ def recommend_next_step(
             explanation="Break helps improve clarity.",
             confidence=0.82,
             next_steps=[
-                    "Say it slowly",
-                    "Focus on each sound",
-                    "Try again calmly"
-                ],
+                "Say it slowly",
+                "Focus on each word",
+                "Try again calmly"
+            ],
             metrics_used=metrics
         )
 
     # -------------------------
-    # 🔥 STEP 5: MID RANGE
+    # 🔥 STEP 6: MID RANGE
     # -------------------------
     if score >= 60:
         return RecommendationOut(
@@ -106,19 +125,26 @@ def recommend_next_step(
             headline="Almost there — refine it ✨",
             explanation="Small adjustments will help.",
             confidence=0.82,
-            next_steps=["Focus on the {} sound.".format(focus) if focus != "general" else "Try saying it slowly and clearly. Focus on each sound.", "Try again calmly", "Record yourself and compare"],
+            next_steps=[
+                "Practice the difficult words",
+                "Say the full sentence slowly",
+                "Try again calmly"
+            ],
             metrics_used=metrics
         )
-    
 
     # -------------------------
-    # 🔥 STEP 6: FALLBACK
+    # 🔥 STEP 7: FALLBACK
     # -------------------------
     return RecommendationOut(
         recommendation="guided_retry",
         headline="Keep going 💪",
         explanation="Practice step by step.",
         confidence=0.75,
-        next_steps=words if words else ["Try saying it slowly and clearly. Focus on each sound.", "Try again calmly", "Record yourself and compare"],
+        next_steps=[
+            "Break sentence into words",
+            "Say each word clearly",
+            "Try again slowly"
+        ],
         metrics_used=metrics
     )

@@ -15,7 +15,8 @@ def recommendation_endpoint(
     data: FeedbackIn,
     db: Session = Depends(get_db),
     user_id: int = Depends(get_current_user_id),
-    pattern: dict | None = None
+    pattern: dict | None = None,
+    alignment=None   # 🔥 NEW
 ) -> RecommendationOut:
 
     # -------------------------
@@ -24,12 +25,27 @@ def recommendation_endpoint(
     weakness_heatmap = generate_weakness_heatmap(db, user_id)
 
     # -------------------------
+    # 🔥 EXTRACT MISTAKES FROM ALIGNMENT
+    # -------------------------
+    mistakes = []
+
+    if alignment:
+        for item in alignment:
+            if item["type"] in ["substitution", "missing"]:
+                if item.get("expected"):
+                    mistakes.append(item["expected"])
+
+    # remove duplicates
+    mistakes = list(dict.fromkeys(mistakes))
+
+    # -------------------------
     # 🔥 GENERATE RECOMMENDATION
     # -------------------------
     result = recommend_next_step(
         data=data,
         weakness_heatmap=weakness_heatmap,
-        pattern = pattern
+        pattern=pattern,
+        mistakes=mistakes   # 🔥 NEW
     )
 
     return result

@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from difflib import SequenceMatcher  # 🔥 NEW
 
 from app.auth.dependencies import get_current_user_id
 from app.database.connection import get_db
@@ -16,6 +17,7 @@ from app.insights.routes.feedback import (
 
 from app.insights.routes.recommendations import recommendation_endpoint
 from app.insights.routes.aggregate import aggregate_feedback_handler
+from app.insights.routes.aggregate import align_words  # 🔥 NEW
 
 
 router = APIRouter(prefix="/feedback", tags=["Insights"])
@@ -46,20 +48,34 @@ def generate_feedback(
     return generate_feedback_handler(data, db, user_id)
 
 
+# 🔥 UPDATED
 @router.post("/recommendation")
 def recommendation(
     data: FeedbackIn,
     user_id: int = Depends(get_current_user_id),
-    db: Session = Depends(get_db)  # 🔥 FIXED
+    db: Session = Depends(get_db)
 ):
-    pattern_result = analyze_pattern_handler(data, user_id)
-    return recommendation_endpoint(data, db, user_id, pattern_result.get("pattern"))
+    alignment = align_words(data.text, data.spoken)  # 🔥 NEW
+
+    pattern_result = analyze_pattern_handler(
+        data,
+        user_id,
+        alignment=alignment   # 🔥 NEW
+    )
+
+    return recommendation_endpoint(
+        data,
+        db,
+        user_id,
+        pattern_result.get("pattern"),
+        alignment=alignment   # 🔥 NEW
+    )
 
 
 @router.post("/aggregate")
 def aggregate_feedback(
     data: FeedbackIn,
     user_id: int = Depends(get_current_user_id),
-    db: Session = Depends(get_db)  # 🔥 FIXED
+    db: Session = Depends(get_db)
 ):
     return aggregate_feedback_handler(data, db, user_id)
