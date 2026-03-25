@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database.connection import SessionLocal
 from app.auth import schemas
 from app.auth.models import User
+from app.auth.service import get_user_analytics
 from app.auth.service import register_user, login_user
 from app.auth.utils import decode_token
 
@@ -103,3 +104,21 @@ def get_profile(
         "badges": user.badges,
         "achievements": user.achievements,
     }
+
+@router.get("/profile/analytics")
+def get_profile_analytics(
+    content_type: str | None = None,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    user_id = int(payload.get("sub"))
+
+    return get_user_analytics(
+        db=db,
+        user_id=user_id,
+        content_type=content_type
+    )
