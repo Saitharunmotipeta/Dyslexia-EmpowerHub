@@ -113,32 +113,37 @@ export const auth = {
 
   login: (email: string, password: string) => {
     const form = new URLSearchParams();
-    form.set("username", email);
+    form.set("username", email.trim().toLowerCase());
     form.set("password", password);
     const base = getBaseUrl();
-    const token = getToken();
     const headers: HeadersInit = {
       "Content-Type": "application/x-www-form-urlencoded",
     };
-    if (token) (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
     return fetch(`${base}/auth/login`, {
       method: "POST",
       headers,
       body: form.toString(),
-    }).then(async (res) => {
-      if (!res.ok) {
-        const text = await res.text();
-        let detail: string;
-        try {
-          const j = JSON.parse(text);
-          detail = j.detail ?? text;
-        } catch {
-          detail = text || res.statusText;
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const text = await res.text();
+          let detail: string;
+          try {
+            const j = JSON.parse(text);
+            detail = j.detail ?? text;
+          } catch {
+            detail = text || res.statusText;
+          }
+          throw new ApiError(res.status, detail);
         }
-        throw new ApiError(res.status, detail);
-      }
-      return res.json() as Promise<LoginResponse>;
-    });
+        return res.json() as Promise<LoginResponse>;
+      })
+      .catch((err) => {
+        if (err instanceof ApiError) throw err;
+        throw new Error(
+          "Unable to reach the server. Check backend URL/CORS and that backend is running."
+        );
+      });
   },
 
   profile: () =>

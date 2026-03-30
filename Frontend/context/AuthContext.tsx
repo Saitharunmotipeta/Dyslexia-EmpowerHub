@@ -93,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         setState((s) => ({ ...s, loading: false }));
         if (e instanceof ApiError) throw e;
+        if (e instanceof Error) throw e;
         throw new Error("Login failed");
       }
     },
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {
         setState((s) => ({ ...s, loading: false }));
         if (e instanceof ApiError) throw e;
+        if (e instanceof Error) throw e;
         throw new Error("Registration failed");
       }
     },

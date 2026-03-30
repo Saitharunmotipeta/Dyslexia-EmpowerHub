@@ -28,6 +28,7 @@ export default function PracticePage() {
   const levelId = levelIdParam ? parseInt(levelIdParam, 10) : null;
 
   const { token, checked } = useAuth();
+  const [imgError, setImgError] = useState(false);
   const [currentWord, setCurrentWord] = useState<WordStatusOut | null>(null);
   const [pace, setPace] = useState(PACE_DEFAULT);
   const paceDebounced = useDebounce(pace, 300);
@@ -55,7 +56,7 @@ export default function PracticePage() {
       return;
     }
   }, [token, checked, router]);
-
+  
   // Fetch word to show (expected word + visual hint) when we have wordId and levelId
   useEffect(() => {
     if (!token || !wordId || !levelId) {
@@ -284,9 +285,24 @@ export default function PracticePage() {
     window.speechSynthesis.speak(u);
   }, [currentWord?.text, result?.expected, paceDebounced]);
 
-  const displayWord = currentWord?.text ?? result?.expected ?? "";
-
+  const displayWord =currentWord?.text ?? currentWord?.text ?? result?.expected ?? "";
+  useEffect(() => {
+    setImgError(false);
+  }, [displayWord]);
   if (!checked || !token) return null;
+
+  const wordKey = displayWord
+  ?.toLowerCase()
+  .trim()
+  .replace(/\s+/g, "")
+  .replace(/[^a-z]/g, "");   // 🔥 THIS IS THE KEY FIX
+ 
+  const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`) : null;
+
+  const finalImage =
+  currentWord?.image_url && currentWord.image_url.trim() !== "" && !imgError
+    ? currentWord.image_url
+    : dynamicImage;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -313,15 +329,20 @@ export default function PracticePage() {
         ) : (
           <>
             {/* Visual hint: image from backend if available, else placeholder */}
-            <div className="min-h-[160px] overflow-hidden rounded-xl bg-dyslexia-bg-secondary transition-all duration-300">
-              {currentWord?.image_url ? (
+            <div className="min-h-[160px] overflow-hidden rounded-xl bg-dyslexia-bg-secondary">
+              {finalImage ? (
                 <img
-                  src={currentWord.image_url}
+                  src={finalImage}
                   alt={displayWord}
                   className="h-full w-full object-contain rounded-xl"
+                  onError={() => setImgError(true)}
                 />
               ) : (
-                <PlaceholderMedia type="image" label={`Visual hint for ${displayWord || "word"}`} className="min-h-[160px]" />
+                <PlaceholderMedia
+                  type="image"
+                  label={`Visual hint for ${displayWord || "word"}`}
+                  className="min-h-[160px]"
+                />
               )}
             </div>
 

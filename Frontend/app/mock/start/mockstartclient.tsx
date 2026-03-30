@@ -9,6 +9,7 @@ import { mock, ApiError, type MockStartResponse } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
+import { assetUrl } from "@/constants/assets";
 
 declare global {
   interface Window {
@@ -39,6 +40,7 @@ export default function MockRunPage() {
   const searchParams = useSearchParams();
   const levelIdParam = searchParams.get("levelId");
   const levelId = levelIdParam ? parseInt(levelIdParam, 10) : null;
+  const [imgError, setImgError] = useState(false);
 
   const { token, checked } = useAuth();
   const [data, setData] = useState<MockStartResponse | null>(null);
@@ -163,6 +165,15 @@ export default function MockRunPage() {
   }
   if (!data) return null;
 
+  const wordKey = currentWord?.word
+    ?.toLowerCase()
+    .trim()
+    .replace(/\s+/g, "")
+
+  const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`) : null;
+
+  const finalImage = !imgError ? dynamicImage : null;
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
       <div className="mb-6 flex items-center justify-between">
@@ -172,7 +183,18 @@ export default function MockRunPage() {
       </div>
 
       <Card className="space-y-6" padding="lg">
+      <div className="min-h-[160px] overflow-hidden rounded-xl bg-gray-100">
+      {finalImage ? (
+        <img
+          src={finalImage}
+          alt={currentWord?.word}
+          className="h-full w-full object-contain rounded-xl"
+          onError={() => setImgError(true)}
+        />
+      ) : (
         <PlaceholderMedia type="image" label="Word image" />
+      )}
+    </div>
         <p className="text-center text-2xl font-bold text-gray-900">
           {currentWord?.word ?? "—"}
         </p>

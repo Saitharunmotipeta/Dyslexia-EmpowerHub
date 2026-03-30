@@ -11,6 +11,7 @@ import { learning, ApiError, type LevelOut } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { DifficultyBadge } from "@/components/ui/DifficultyBadge";
+import { assetUrl } from "@/constants/assets";
 
 export default function MockStartPage() {
   const router = useRouter();
@@ -101,7 +102,16 @@ export default function MockStartPage() {
   }
 
   const unlockedCount = levels.filter(l => l.is_unlocked).length;
-
+  const getLevelImage = (name?: string) => {
+    if (!name) return null;
+  
+    const key = name
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-");
+  
+    return assetUrl(`${key}.jpg`);
+  };
   return (
     <main className="min-h-screen bg-gradient-to-br from-white via-primary-50 to-blue-50">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -151,9 +161,11 @@ export default function MockStartPage() {
               className={`transform transition-all duration-300 hover:scale-105 animate-fadeIn`}
               style={{ animationDelay: `${index * 50}ms` }}
             >
+              
               <div
                 className={`${getDifficultyLightColor(level.difficulty)} border-2 ${getDifficultyBorder(level.difficulty)} rounded-2xl p-6 shadow-soft hover:shadow-soft-lg flex flex-col h-full transition-all duration-300`}
               >
+                
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">

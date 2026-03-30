@@ -20,11 +20,17 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Login failed"
+      );
     }
   }
 

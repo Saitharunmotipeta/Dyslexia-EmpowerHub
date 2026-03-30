@@ -21,11 +21,17 @@ export default function RegisterPage() {
     e.preventDefault();
     setError(null);
     try {
-      await register(username, email, password);
+      await register(username.trim(), email.trim(), password);
       router.push("/auth/login");
       router.refresh();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Registration failed");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Registration failed"
+      );
     }
   }
 
