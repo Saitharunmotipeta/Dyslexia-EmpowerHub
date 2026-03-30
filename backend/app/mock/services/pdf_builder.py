@@ -1,128 +1,174 @@
-from io import BytesIO
-from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib.colors import black, grey
-from reportlab.lib.units import inch
+def build_mock_pdf(attempt, username: str, next_level_unlocked: bool):
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from io import BytesIO
+    from datetime import datetime
 
-
-def build_mock_pdf(attempt, username: str, next_level_unlocked: bool) -> BytesIO:
     buffer = BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    width, height = A4
-    y = height - 60
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=40,
+        bottomMargin=40
+    )
 
-    def draw(text, size=11, bold=False, gap=16):
-        nonlocal y
-        pdf.setFont("Helvetica-Bold" if bold else "Helvetica", size)
-        pdf.setFillColor(black)
-        pdf.drawString(60, y, text)
-        y -= gap
+    story = []
 
-    def divider():
-        nonlocal y
-        pdf.setStrokeColor(grey)
-        pdf.line(60, y, width - 60, y)
-        y -= 18
+    # 🎨 COLORS
+    BG = colors.HexColor("#F8FAFC")
+    CARD = colors.white
+    BORDER = colors.HexColor("#E2E8F0")
+    PRIMARY = colors.HexColor("#4F46E5")
+    TEXT = colors.HexColor("#1E293B")
+    SUB = colors.HexColor("#64748B")
 
-    # ================= HEADER =================
-    draw("DYSLEXIA EMPOWERHUB", 18, True, 24)
-    draw("Mock Test Performance Report", 14, True, 22)
-    draw(f"Attempt ID: {attempt.public_attempt_id}")
-    draw(f"Generated On: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
-    divider()
+    # 🎨 STYLES
+    title = ParagraphStyle("title", fontSize=18, textColor=PRIMARY, spaceAfter=6)
+    section = ParagraphStyle("section", fontSize=13, textColor=TEXT, spaceAfter=8)
+    normal = ParagraphStyle("normal", fontSize=11, textColor=TEXT, leading=14)
+    small = ParagraphStyle("small", fontSize=10, textColor=SUB, leading=13)
 
-    # ================= USER DETAILS =================
-    draw("Candidate Information", 13, True, 20)
-    draw(f"Username: {username}")
-    draw(f"User ID: {attempt.user_id}")
-    draw(f"Level: {attempt.level_id}")
-    draw(f"Status: {attempt.status.capitalize()}")
-    divider()
+    # ---------------- HEADER ----------------
+    header = Table(
+        [[Paragraph("<b>Dyslexia EmpowerHub - Mock Performance Report</b>", title)]],
+        colWidths=[500]
+    )
 
-    # ================= SUMMARY =================
-    total_score = attempt.total_score or 0
-    verdict = attempt.verdict.replace("_", " ").title()
+    header.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), BG),
+        ("BOX", (0, 0), (-1, -1), 0, BG),
+        ("PADDING", (0, 0), (-1, -1), 12),
+    ]))
 
-    draw("Performance Summary", 13, True, 20)
-    draw(f"Final Score: {total_score}%")
-    draw(f"Verdict: {verdict}")
-    draw(f"Confidence Index: {round(total_score/100, 2)}")
-    divider()
+    story.append(header)
+    story.append(Spacer(1, 12))
 
-    results = attempt.results or {}
-    words = results.get("words", [])
+    # ---------------- PROFILE ----------------
+    profile = Table([
+        ["Name", username],
+        ["User ID", str(attempt.user_id)],
+        ["Level", str(attempt.level_id)],
+        ["Status", attempt.status.capitalize()]
+    ], colWidths=[120, 360])
 
-    draw("Word Breakdown", 13, True, 20)
+    profile.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CARD),
+        ("BOX", (0, 0), (-1, -1), 1, BORDER),
+        ("INNERGRID", (0, 0), (-1, -1), 0.5, BORDER),
+        ("PADDING", (0, 0), (-1, -1), 10),
+    ]))
 
-    for i, w in enumerate(words, 1):
-        draw(
-            f"{i}. {w.get('expected')} → {w.get('recognized')} "
-            f"| Score: {w.get('score')}% | {w.get('verdict')}",
-            size=10,
-            gap=14
+    story.append(Paragraph("Candidate Profile", section))
+    story.append(profile)
+    story.append(Spacer(1, 16))
+
+    # ---------------- SCORE ----------------
+    score = attempt.total_score or 0
+
+    score_color = "#16A34A" if score >= 85 else "#F59E0B" if score >= 65 else "#DC2626"
+
+    score_box = Table([
+        [Paragraph(f"<b>Final Score:</b> <font color='{score_color}'>{score}%</font>", normal)],
+        [Paragraph(f"<b>Verdict:</b> {attempt.verdict.replace('_',' ').title()}", normal)],
+        [Paragraph(f"<b>Confidence:</b> {round(score/100,2)}", small)]
+    ], colWidths=[500])
+
+    score_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CARD),
+        ("BOX", (0, 0), (-1, -1), 1, BORDER),
+        ("PADDING", (0, 0), (-1, -1), 12),
+    ]))
+
+    story.append(Paragraph("Performance Summary", section))
+    story.append(score_box)
+    story.append(Spacer(1, 16))
+
+    # ---------------- WORD ANALYSIS ----------------
+    story.append(Paragraph("Detailed Analysis", section))
+
+    words = attempt.results.get("words", [])
+
+    for w in words:
+        color = "#16A34A" if w["score"] >= 80 else "#DC2626"
+
+        word_block = []
+
+        word_block.append(
+            Paragraph(f"<b>{w['expected']}</b> → {w['recognized']}", normal)
         )
 
-        feedback = w.get("feedback")
-        if feedback:
-            draw(f"    Feedback: {feedback}", size=9, gap=14)
+        word_block.append(
+            Paragraph(f"Score: <font color='{color}'>{w['score']}%</font> ({w['verdict']})", small)
+        )
 
-        if y < 100:
-            pdf.showPage()
-            y = height - 60
+        for f in w.get("feedback", [])[:2]:
+            word_block.append(Paragraph(f"• {f}", small))
 
-    divider()
+        card = Table([[word_block]], colWidths=[500])
 
-    # ================= INSIGHTS =================
-    weak = [w for w in words if w.get("score", 0) < 65]
-    strong = [w for w in words if w.get("score", 0) >= 85]
+        card.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), CARD),
+            ("BOX", (0, 0), (-1, -1), 1, BORDER),
+            ("PADDING", (0, 0), (-1, -1), 10),
+        ]))
 
-    draw("Insights & Observations", 13, True, 20)
+        story.append(card)
+        story.append(Spacer(1, 10))
 
+    # ---------------- INSIGHTS ----------------
+    story.append(Paragraph("Insights", section))
+
+    weak = [w for w in words if w["score"] < 65]
+    strong = [w for w in words if w["score"] >= 85]
+
+    insights_text = []
     if strong:
-        draw(f"Strength: Strong pronunciation in {len(strong)} word(s)")
+        insights_text.append(Paragraph(f"✔ Strong in {len(strong)} items", normal))
     if weak:
-        draw(f"Improvement Needed: {len(weak)} word(s) require focused practice")
-    if not weak:
-        draw("Excellent consistency across all words")
+        insights_text.append(Paragraph(f"⚠ Needs improvement in {len(weak)} items", normal))
 
-    divider()
+    insights_box = Table([[insights_text]], colWidths=[500])
 
-    # ================= PROGRESSION =================
-    draw("Progression Status", 13, True, 20)
+    insights_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), BG),
+        ("BOX", (0, 0), (-1, -1), 1, BORDER),
+        ("PADDING", (0, 0), (-1, -1), 12),
+    ]))
 
-    unlock_text = "UNLOCKED" if next_level_unlocked else "LOCKED"
-    draw(f"Next Level Eligibility: {unlock_text}")
+    story.append(insights_box)
+    story.append(Spacer(1, 16))
 
-    if not next_level_unlocked:
-        draw("Recommendation: Achieve at least 70% average score to unlock next level")
+    # ---------------- RECOMMENDATIONS ----------------
+    story.append(Paragraph("Recommended Actions", section))
 
-    divider()
+    recs = [
+        "Practice slowly with clarity",
+        "Repeat difficult sounds",
+        "Focus on full phrases",
+        "Retry after revision"
+    ]
 
-    # ================= RECOMMENDATIONS =================
-    draw("Recommended Next Steps", 13, True, 20)
+    rec_box = Table([[Paragraph(f"• {r}", normal)] for r in recs], colWidths=[500])
 
-    draw("• Practice weak words slowly with syllable emphasis")
-    draw("• Use repetition before recording")
-    draw("• Focus on clarity over speed")
-    draw("• Attempt mock again after revision")
+    rec_box.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), CARD),
+        ("BOX", (0, 0), (-1, -1), 1, BORDER),
+        ("PADDING", (0, 0), (-1, -1), 10),
+    ]))
 
-    divider()
+    story.append(rec_box)
+    story.append(Spacer(1, 20))
 
-    # ================= FOOTER =================
-    pdf.setFont("Helvetica-Oblique", 9)
-    pdf.setFillColor(grey)
-    pdf.drawString(
-        60,
-        40,
-        "Generated by Dyslexia EmpowerHub • One sound at a time, one step forward."
-    )
-    pdf.drawString(
-        60,
-        28,
-        "Confidential Report — For learner use only"
-    )
+    # ---------------- FOOTER ----------------
+    story.append(Paragraph(
+        "<i>Generated by Dyslexia EmpowerHub • One step at a time</i>",
+        ParagraphStyle("footer", fontSize=9, textColor=SUB)
+    ))
 
-    pdf.save()
+    doc.build(story)
     buffer.seek(0)
     return buffer
