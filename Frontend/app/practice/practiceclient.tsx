@@ -12,8 +12,8 @@ import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
 import { CompletionPopup } from "@/components/ui/CompletionPopup";
 import { assetUrl } from "@/constants/assets";
 
-const PACE_MIN = 20;
-const PACE_MAX = 140;
+const PACE_MIN = 1;
+const PACE_MAX = 100;
 const PACE_DEFAULT = 100;
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -281,7 +281,7 @@ export default function PracticePage() {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word);
     u.lang = "en-US";
-    u.rate = paceDebounced / 100; // 50 → 0.5, 100 → 1, 150 → 1.5
+    u.rate = paceDebounced / 100; 
     window.speechSynthesis.speak(u);
   }, [currentWord?.text, result?.expected, paceDebounced]);
 
@@ -295,7 +295,7 @@ export default function PracticePage() {
   ?.toLowerCase()
   .trim()
   .replace(/\s+/g, "")
-  .replace(/[^a-z]/g, "");   // 🔥 THIS IS THE KEY FIX
+  .replace(/[^a-z]/g, ""); 
  
   const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`) : null;
 
@@ -329,7 +329,7 @@ export default function PracticePage() {
         ) : (
           <>
             {/* Visual hint: image from backend if available, else placeholder */}
-            <div className="min-h-[160px] overflow-hidden rounded-xl bg-dyslexia-bg-secondary">
+            <div className="h-[320px] w-full overflow-hidden rounded-xl bg-dyslexia-bg-secondary flex items-center justify-center">
               {finalImage ? (
                 <img
                   src={finalImage}
