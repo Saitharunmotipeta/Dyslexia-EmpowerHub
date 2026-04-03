@@ -45,6 +45,27 @@ export default function MockResultPage() {
       .finally(() => setLoading(false));
   }, [attemptId, token, checked, router]);
 
+  useEffect(() => {
+    if (!checked || !attemptId || !token) return;
+    const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/mock/report?public_attempt_id=${attemptId}`;
+    fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => {
+        if (res.ok) {
+          console.log("[mock/report] success");
+        } else {
+          console.error("[mock/report] failed", res.status, res.statusText);
+        }
+      })
+      .catch((err) => {
+        console.error("[mock/report] failed", err);
+      });
+  }, [attemptId, token, checked]);
+
   if (!checked || !token) return null;
   if (loading) {
     return (

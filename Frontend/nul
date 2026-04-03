@@ -1,0 +1,4 @@
+rmdir: /s: No such file or directory
+rmdir: /q: No such file or directory
+rmdir: .next: Directory not empty
+file or directory

@@ -1,13 +1,11 @@
 /**
  * API client for Dyslexia Backend.
- * Base URL from NEXT_PUBLIC_API_BASE_URL. All routes match backend exactly.
+ * Base URL from NEXT_PUBLIC_API_BASE_URL (same fallback as `lib/apiBase.ts`).
  */
 
-const getBaseUrl = () => {
-  const url = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!url) throw new Error("NEXT_PUBLIC_API_BASE_URL is not set");
-  return url.replace(/\/$/, "");
-};
+import { getPublicApiBaseUrl } from "@/lib/apiBase";
+
+const getBaseUrl = () => getPublicApiBaseUrl();
 
 const getToken = (): string | null => {
   if (typeof window === "undefined") return null;

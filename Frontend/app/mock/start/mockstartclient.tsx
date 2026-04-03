@@ -2,38 +2,19 @@
 
 export const dynamic = "force-dynamic";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { mock, ApiError, type MockStartResponse } from "@/lib/api";
+import { type MockStartResponse } from "@/lib/api";
+import { useMediaRecorder } from "@/hooks/useMediaRecorder";
+import { getPublicApiBaseUrl } from "@/lib/apiBase";
+import { evaluatePracticeAudio } from "@/lib/speech/evaluatePracticeAudio";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
 import { assetUrl } from "@/constants/assets";
 
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-  }
-}
-interface SpeechRecognitionEvent extends Event {
-  readonly results: SpeechRecognitionResultList;
-}
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onend: (() => void) | null;
-  start(): void;
-  stop(): void;
-}
-function getSpeechRecognition(): (new () => SpeechRecognition) | null {
-  if (typeof window === "undefined") return null;
-  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
-}
+const API = getPublicApiBaseUrl();
 
 export default function MockRunPage() {
   const router = useRouter();
@@ -47,10 +28,16 @@ export default function MockRunPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [spoken, setSpoken] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const {
+    recording,
+    audioBlob,
+    audioURL,
+    error: micError,
+    startRecording,
+    stopRecording,
+    reset,
+  } = useMediaRecorder();
 
   useEffect(() => {
     if (!checked) return;
@@ -63,34 +50,88 @@ export default function MockRunPage() {
       setLoading(false);
       return;
     }
-    mock
-      .start(levelId)
-      .then(setData)
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to start mock"))
-      .finally(() => setLoading(false));
+
+    (async () => {
+      try {
+        const res = await fetch(`${API}/mock/start?level_id=${levelId}`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        setData((await res.json()) as MockStartResponse);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to start mock");
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [levelId, token, checked, router]);
 
   const currentWord = data?.words?.[currentIndex];
   const isLast = data && currentIndex >= data.words.length - 1;
 
+  useEffect(() => {
+    if (!micError) return;
+    setError(micError);
+  }, [micError]);
+
+  useEffect(() => {
+    // New word: clear previous recording
+    reset();
+  }, [currentIndex, reset]);
+
   const handleSubmitWord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!data || !currentWord) return;
+    if (!token) {
+      setError("Not authenticated.");
+      return;
+    }
     setSubmitting(true);
     try {
-      await mock.submitWord({
-        public_attempt_id: data.public_attempt_id,
-        word_id: currentWord.id,
-        spoken: spoken.trim() || " ",
+      if (!audioBlob || audioBlob.size === 0) {
+        setError("Recording was empty. Tap Record, speak, then Stop, and try again.");
+        return;
+      }
+
+      // -----------------------------
+      // STEP 1: EVALUATE (audio → recognized)
+      // -----------------------------
+      const evalData = await evaluatePracticeAudio({
+        token,
+        wordId: currentWord.id,
+        audioBlob,
+        apiBaseUrl: API,
       });
-      setSpoken("");
+
+      // -----------------------------
+      // STEP 2: Submit recognized → /mock/word
+      // -----------------------------
+      const res = await fetch(`${API}/mock/word`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          public_attempt_id: data.public_attempt_id,
+          word_id: currentWord.id,
+          spoken: evalData.recognized,
+        }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
       if (isLast) {
         router.push(`/mock/result?public_attempt_id=${encodeURIComponent(data.public_attempt_id)}`);
         return;
       }
       setCurrentIndex((i) => i + 1);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Submit failed");
+      setError(err instanceof Error ? err.message : "Submit failed");
     } finally {
       setSubmitting(false);
     }
@@ -105,45 +146,6 @@ export default function MockRunPage() {
     u.lang = "en-US";
     window.speechSynthesis.speak(u);
   }, [currentWord?.word]);
-
-  // Speak (STT) — fill the input with what you say
-  const startListening = useCallback(() => {
-    setError(null);
-    const SR = getSpeechRecognition();
-    if (!SR) {
-      setError("Speech recognition not supported. Use the text field.");
-      return;
-    }
-    const recognition = new SR();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = Array.from(event.results)
-        .map((r) => r[0].transcript)
-        .join(" ")
-        .trim();
-      if (transcript) setSpoken(transcript);
-    };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
-    recognition.start();
-    recognitionRef.current = recognition;
-    setListening(true);
-  }, []);
-
-  const stopListening = useCallback(() => {
-    const rec = recognitionRef.current;
-    if (rec) {
-      try {
-        rec.stop();
-      } catch {
-        // ignore
-      }
-      recognitionRef.current = null;
-    }
-    setListening(false);
-  }, []);
 
   if (!checked || !token) return null;
   if (loading) {
@@ -212,25 +214,28 @@ export default function MockRunPage() {
           </Button>
           <Button
             type="button"
-            variant={listening ? "secondary" : "primary"}
-            onClick={listening ? stopListening : startListening}
+            variant={recording ? "secondary" : "primary"}
+            onClick={recording ? stopRecording : startRecording}
             disabled={!currentWord}
-            aria-pressed={listening}
+            aria-pressed={recording}
           >
-            {listening ? "Stop" : "🎙 Speak"}
+            {recording ? "Stop" : "🎙 Record"}
           </Button>
         </div>
 
         <form onSubmit={handleSubmitWord} className="space-y-4">
-          <input
-            type="text"
-            value={spoken}
-            onChange={(e) => setSpoken(e.target.value)}
-            placeholder="Type or say the word..."
-            className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200"
-            autoFocus
-          />
-          <Button type="submit" disabled={submitting} className="w-full">
+          {audioURL && (
+            <div className="mt-2 space-y-3">
+              <audio controls src={audioURL} className="w-full" />
+              <div className="flex gap-3">
+                <Button type="button" variant="secondary" onClick={reset}>
+                  Retry
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" disabled={submitting || !audioBlob} className="w-full">
             {isLast ? "Finish test" : "Next word"}
           </Button>
         </form>

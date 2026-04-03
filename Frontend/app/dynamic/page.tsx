@@ -1,20 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { dynamicApi, ApiError, type DynamicAnalyzeOut } from "@/lib/api";
+import { type DynamicAnalyzeOut } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
 import { assetUrl } from "@/constants/assets";
+import { useMediaRecorder } from "@/hooks/useMediaRecorder";
+import { getPublicApiBaseUrl } from "@/lib/apiBase";
+import {
+  evaluateDynamicAudio,
+  type PracticeEvaluation,
+} from "@/lib/speech/evaluatePracticeAudio";
 
 const STEPS = 5;
 const STEP_LABELS = ["Enter text", "Analyze", "See meaning", "Practice", "Done"];
+const API = getPublicApiBaseUrl();
 
 export default function DynamicPage() {
   const router = useRouter();
@@ -22,13 +29,21 @@ export default function DynamicPage() {
   const [step, setStep] = useState(1);
   const [text, setText] = useState("");
   const [analyzed, setAnalyzed] = useState<DynamicAnalyzeOut | null>(null);
-  const [spoken, setSpoken] = useState("");
-  const [score, setScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isListening, setIsListening] = useState(false);
+  const [evaluation, setEvaluation] = useState<PracticeEvaluation | null>(null);
   const [pace, setPace] = useState(100);
   const [imgError, setImgError] = useState(false);
+
+  const {
+    recording,
+    audioBlob,
+    audioURL,
+    error: micError,
+    startRecording,
+    stopRecording,
+    reset,
+  } = useMediaRecorder();
 
   useEffect(() => {
     if (!checked) return;
@@ -39,17 +54,38 @@ export default function DynamicPage() {
     setImgError(false);
   }, [analyzed]);
 
+  useEffect(() => {
+    if (!micError) return;
+    setError(micError);
+  }, [micError]);
+
   const handleAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
+    if (!token) {
+      setError("Not authenticated.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const res = await dynamicApi.analyze({ text: text.trim() });
-      setAnalyzed(res);
+      const res = await fetch(`${API}/dynamic/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ text: text.trim() }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+
+      setAnalyzed((await res.json()) as DynamicAnalyzeOut);
+      setEvaluation(null);
+      reset();
       setStep(2);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Analyze failed");
+      setError(err instanceof Error ? err.message : "Analyze failed");
     } finally {
       setLoading(false);
     }
@@ -57,20 +93,33 @@ export default function DynamicPage() {
 
   const handleSaveAttempt = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!analyzed) return;
+    if (!analyzed || !evaluation) return;
+    if (!token) {
+      setError("Not authenticated.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      await dynamicApi.attempt({
-        text: text.trim(),
-        text_type: analyzed.type,
-        spoken: spoken.trim() || " ",
-        score: score ?? 0,
-        pace: 1,
+      const res = await fetch(`${API}/dynamic/attempt`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          text: text.trim(),
+          text_type: analyzed.type,
+          spoken: evaluation.recognized.trim() || " ",
+          score: evaluation.score ?? 0,
+          pace: 1,
+        }),
       });
+
+      if (!res.ok) throw new Error(await res.text());
       setStep(5);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Save failed");
+      setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setLoading(false);
     }
@@ -104,46 +153,34 @@ export default function DynamicPage() {
     speak(analyzed.meaning, 0.9);
   };
 
-  const startListening = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-  
-    if (!SpeechRecognition) {
-      alert("Speech Recognition not supported");
+  const handleEvaluateAudio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!analyzed || !token) return;
+    if (!audioBlob) {
+      setError("Please record audio first.");
       return;
     }
-  
-    const recognition = new SpeechRecognition();
-  
-    recognition.lang = "en-US";
-    recognition.interimResults = false;
-  
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-  
-    recognition.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      setSpoken(transcript);
-    };
-  
-    recognition.start();
-  };
 
-  const normalize = (t: string) =>
-    t.toLowerCase().replace(/[^a-z\s]/g, "").trim();
-  
-  const calculateScore = (expected: string, spoken: string) => {
-    const e = normalize(expected).split(" ");
-    const s = normalize(spoken).split(" ");
-  
-    let correct = 0;
-  
-    e.forEach((word) => {
-      if (s.includes(word)) correct++;
-    });
-  
-    return Math.round((correct / e.length) * 100);
+    setLoading(true);
+    setError(null);
+    try {
+      const expectedText = analyzed.words.join(" ");
+
+      const evalData = await evaluateDynamicAudio({
+        token,
+        expectedText,
+        audioBlob,
+        apiBaseUrl: API,
+      });
+
+      setEvaluation(evalData);
+      reset();
+      setStep(4);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Evaluation failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getAlignment = (expected: string, spoken: string) => {
@@ -213,27 +250,6 @@ export default function DynamicPage() {
             className="h-20 w-auto object-contain sm:h-24 rounded-xl transition-opacity duration-300"
           />
         </div>
-
-      {/* ✅ ADD IMAGE HERE (GLOBAL) */}
-      <div className="h-[320px] w-full overflow-hidden rounded-xl bg-dyslexia-bg-secondary flex items-center justify-center">
-        {dynamicImage && !imgError ? (
-          <img
-          src={dynamicImage || assetUrl("fallback.jpg")}
-          alt={displayWord}
-          className="h-full w-full object-contain rounded-xl"
-          onError={(e) => {
-            const target = e.currentTarget as HTMLImageElement;
-            target.src = assetUrl("fallback.jpg");
-          }}
-        />
-        ) : (
-          <PlaceholderMedia
-            type="image"
-            label={`Visual hint for ${displayWord || "word"}`}
-            className="min-h-[160px]"
-          />
-        )}
-      </div>
 
         <div>
         <label className="text-sm">Speed: {pace}%</label>
@@ -309,28 +325,30 @@ export default function DynamicPage() {
             <p className="text-center text-2xl font-bold uppercase text-dyslexia-text-primary leading-relaxed tracking-wide">
               {analyzed.words.join(" ")}
             </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const scoreVal = calculateScore(analyzed.words.join(" "), spoken);
-                setScore(scoreVal);
-                setStep(4);
-              }}
-              className="space-y-4"
-            >
-              <Input
-                label="Type or say the word"
-                value={spoken}
-                onChange={(e) => setSpoken(e.target.value)}
-              />
+            <form onSubmit={handleEvaluateAudio} className="space-y-4">
+              {audioURL && (
+                <div className="mt-2 space-y-3">
+                  <audio controls src={audioURL} className="w-full" />
+                  <div className="flex gap-3">
+                    <Button type="button" variant="secondary" onClick={reset}>
+                      Retry
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2">
-                <Button type="button" onClick={startListening}>
-                  🎤 {isListening ? "Listening..." : "Speak"}
+                <Button
+                  type="button"
+                  onClick={recording ? stopRecording : startRecording}
+                  disabled={!analyzed}
+                  aria-pressed={recording}
+                >
+                  {recording ? "Stop" : "🎙 Record"}
                 </Button>
 
-                <Button type="submit" className="flex-1">
-                  Submit
+                <Button type="submit" className="flex-1" disabled={loading || !audioBlob}>
+                  {loading ? "Processing..." : "Submit"}
                 </Button>
               </div>
             </form>
@@ -341,12 +359,12 @@ export default function DynamicPage() {
           <form onSubmit={handleSaveAttempt} className="space-y-4">
 
           {/* 🔥 ALIGNMENT UI */}
-          {analyzed && spoken && (
+          {evaluation && (
             <div>
               {(() => {
                 const alignment = getAlignment(
-                  analyzed.words.join(" "),
-                  spoken
+                  evaluation.expected,
+                  evaluation.recognized
                 );
         
                 return (
@@ -377,6 +395,10 @@ export default function DynamicPage() {
                         );
                       })}
                     </div>
+
+                    <p className="text-xs text-gray-500 mt-3">
+                      Verdict: <span className="font-medium">{evaluation.verdict || (evaluation.is_correct ? "correct" : "needs_practice")}</span>
+                    </p>
                   </>
                 );
               })()}
@@ -385,10 +407,10 @@ export default function DynamicPage() {
         
           {/* SCORE */}
           <p className="text-lg">
-            Score: <strong>{score ?? 0}%</strong>
+            Score: <strong>{evaluation?.score ?? 0}%</strong>
           </p>
         
-          <Button type="submit" loading={loading} className="w-full">
+          <Button type="submit" loading={loading} className="w-full" disabled={!evaluation}>
             Save attempt
           </Button>
         </form>
@@ -397,7 +419,15 @@ export default function DynamicPage() {
         {step === 5 && (
           <>
             <p className="text-xl font-semibold text-dyslexia-accent-green leading-relaxed tracking-wide">Dynamic attempt saved.</p>
-            <Button onClick={() => { setStep(1); setText(""); setAnalyzed(null); setSpoken(""); setScore(null); }}>
+            <Button
+              onClick={() => {
+                setStep(1);
+                setText("");
+                setAnalyzed(null);
+                setEvaluation(null);
+                reset();
+              }}
+            >
               Try again
             </Button>
             <Link href="/">

@@ -32,8 +32,36 @@ def evaluate_practice(
     # -------------------------
     # 2️⃣ Speech recognition
     # -------------------------
-    speech_result = recognize_speech(file)
-    spoken = speech_result.get("recognized_text", "")
+    try:
+        file.file.seek(0, 2)
+        audio_size = file.file.tell()
+        file.file.seek(0)
+    except Exception:
+        audio_size = -1
+    if audio_size == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Empty audio upload. Record again and ensure the browser has microphone access.",
+        )
+
+    try:
+        speech_result = recognize_speech(file)
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Speech recognition failed: {e!s}",
+        ) from e
+
+    spoken = (
+        speech_result.get("recognized_text")
+        or speech_result.get("text")
+        or speech_result.get("transcript")
+        or ""
+    )
+    if isinstance(spoken, str):
+        spoken = spoken.strip()
+    else:
+        spoken = str(spoken or "")
 
     # -------------------------
     # 3️⃣ Evaluate similarity

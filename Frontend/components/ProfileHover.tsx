@@ -162,12 +162,6 @@ export function ProfileHover() {
 
           {/* Action Buttons */}
           <div className="px-6 py-4 flex flex-col gap-2">
-            <Link
-              href="/profile"
-              className="w-full rounded-xl bg-dyslexia-accent-blue/10 px-4 py-2 text-sm font-medium text-dyslexia-accent-blue hover:bg-dyslexia-accent-blue/20 transition-all duration-200 text-center active:scale-95 transition-transform"
-            >
-              View Profile
-            </Link>
             <button
               type="button"
               onClick={() => logout()}
