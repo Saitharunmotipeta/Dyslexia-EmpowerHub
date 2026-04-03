@@ -97,4 +97,4 @@ The system is designed to make sense **one module at a time**.
 
 ---
 
-Live app -- https://dyslexia-empowerhub.vercel.app(still in development)
+Live app -- https://dyslexia-empowerhub.vercel.app (still in development)
