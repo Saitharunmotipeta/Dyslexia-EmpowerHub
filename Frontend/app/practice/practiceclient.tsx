@@ -11,11 +11,16 @@ import { Button } from "@/components/ui/Button";
 import { PlaceholderMedia } from "@/components/ui/PlaceholderMedia";
 import { CompletionPopup } from "@/components/ui/CompletionPopup";
 import { assetUrl } from "@/constants/assets";
+import { getPublicApiBaseUrl } from "@/lib/apiBase";
+import {
+  evaluatePracticeAudio,
+  parseApiErrorMessage,
+} from "@/lib/speech/evaluatePracticeAudio";
 
 const PACE_MIN = 1;
 const PACE_MAX = 100;
 const PACE_DEFAULT = 100;
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API = getPublicApiBaseUrl();
 
 export const dynamic = "force-dynamic";
 
@@ -39,7 +44,6 @@ export default function PracticePage() {
   const [error, setError] = useState<string | null>(null);
   const [showWordCompletion, setShowWordCompletion] = useState(false);
   const [showRetry, setShowRetry] = useState(false);
-  const [showNextGif, setShowNextGif] = useState(false);
   const wordCompletedThisSessionRef = useRef(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioURL, setAudioURL] = useState<string | null>(null);
@@ -77,26 +81,6 @@ export default function PracticePage() {
   useEffect(() => {
     wordCompletedThisSessionRef.current = false;
   }, [wordId, levelId]);
-
-  useEffect(() => {
-    if (!showNextGif || !levelId || !wordId) return;
-    const t = setTimeout(() => {
-      learning
-        .getWordsForLevel(levelId)
-        .then((words) => {
-          const idx = words.findIndex((w) => w.id === wordId);
-          if (idx >= 0 && idx < words.length - 1) {
-            const nextWord = words[idx + 1];
-            router.push(`/practice?wordId=${nextWord.id}&levelId=${levelId}`);
-          } else {
-            router.push(`/learning/${levelId}`);
-          }
-        })
-        .catch(() => router.push(`/learning/${levelId}`))
-        .finally(() => setShowNextGif(false));
-    }, 2000);
-    return () => clearTimeout(t);
-  }, [showNextGif, levelId, wordId, router]);
 
   const startRecording = useCallback(async () => {
     setError(null);
@@ -155,31 +139,20 @@ export default function PracticePage() {
     setError(null);
 
     try {
-      // -----------------------------
-      // STEP 1: EVALUATE (audio → score)
-      // -----------------------------
-      const formData = new FormData();
-
-      formData.append("word_id", String(wordId));
-      formData.append(
-        "file",
-        audioBlob || new Blob([""], { type: "audio/webm" }),
-        "audio.webm"
-      );
-
-      const evalRes = await fetch(`${API}/practice/evaluate`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!evalRes.ok) {
-        throw new Error(await evalRes.text());
+      if (!audioBlob || audioBlob.size === 0) {
+        setError("Recording failed. Please try again.");
+        return;
       }
 
-      const evalData = await evalRes.json();
+      // -----------------------------
+      // STEP 1: EVALUATE (audio → score) — backend calls SPEECH_SERVICE_URL
+      // -----------------------------
+      const evalData = await evaluatePracticeAudio({
+        token: token!,
+        wordId,
+        audioBlob,
+        apiBaseUrl: API,
+      });
 
       // -----------------------------
       // STEP 2: AGGREGATE (intelligence layer)
@@ -202,7 +175,7 @@ export default function PracticePage() {
       });
 
       if (!aggRes.ok) {
-        throw new Error(await aggRes.text());
+        throw new Error(await parseApiErrorMessage(aggRes));
       }
 
       const aggData = await aggRes.json();
@@ -228,7 +201,6 @@ export default function PracticePage() {
       // -----------------------------
       if (evalData.score >= 60) {
         setShowWordCompletion(true);
-        setShowNextGif(true);
       } else {
         setShowRetry(true);
       }
@@ -241,7 +213,9 @@ export default function PracticePage() {
 
     } catch (err) {
       console.error(err);
-      setError("Evaluation failed");
+      setError(
+        err instanceof Error ? err.message : "Evaluation failed"
+      );
     } finally {
       setLoading(false);
     }
@@ -351,10 +325,14 @@ export default function PracticePage() {
               {displayWord || "—"}
             </p>
             {currentWord?.phonetics && (
-              <p className="text-center text-lg text-dyslexia-text-secondary leading-relaxed tracking-wide">{currentWord.phonetics}</p>
+              <p className="text-center text-xl font-medium text-dyslexia-text-secondary sm:text-2xl leading-relaxed tracking-wide">
+                {currentWord.phonetics}
+              </p>
             )}
             {currentWord?.syllables && (
-              <p className="text-center text-sm text-dyslexia-text-secondary">{currentWord.syllables}</p>
+              <p className="text-center text-xl font-semibold text-dyslexia-text-primary sm:text-2xl leading-relaxed tracking-widest">
+                {currentWord.syllables}
+              </p>
             )}
 
             {/* Play word (TTS) at current pace */}
@@ -441,10 +419,6 @@ export default function PracticePage() {
                   onChange={(e) => setPace(Number(e.target.value))}
                   className="mt-2 w-full accent-[#6B8CA3]"
                 />
-
-                <p className="mt-1 text-sm text-dyslexia-text-secondary">
-                  Debounced value: {paceDebounced}%
-                </p>
               </div>
           </>
         )}
@@ -512,10 +486,6 @@ export default function PracticePage() {
                         );
                       })}
                     </div>
-
-                    <p className="text-xs text-gray-500 mt-2">
-                      Green = correct, Red = wrong, Yellow = missing, Purple = extra
-                    </p>
                   </>
                 );
               })()}

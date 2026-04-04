@@ -29,6 +29,8 @@ def generate_mock_report_pdf(
     if attempt.status != "completed":
         raise ValueError("Mock test not completed yet")
 
+    db.refresh(attempt)
+
     # -----------------------------
     # Fetch user
     # -----------------------------
@@ -67,10 +69,26 @@ def generate_mock_report_pdf(
     # -----------------------------
 
     if email:
+        _results = attempt.results or {}
+        _words = _results.get("words") or []
+        _scores = [
+            float(w.get("score", 0) or 0)
+            for w in _words
+            if isinstance(w, dict)
+        ]
+        if _scores:
+            _report_score = round(sum(_scores) / len(_scores), 2)
+        else:
+            _report_score = attempt.total_score if attempt.total_score else 0
+
+        print("📧 REPORT ATTEMPT ID:", attempt.public_attempt_id)
+        print("📊 WORD COUNT:", len(_words))
+        print("📊 SCORES:", _scores)
+        print("📊 FINAL SCORE:", _report_score)
 
         subject, text_body, html_body = build_mock_report_email(
             username=username,
-            score=attempt.total_score,
+            score=_report_score,
             unlocked=next_level_unlocked
         )
 

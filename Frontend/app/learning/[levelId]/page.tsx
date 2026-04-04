@@ -94,7 +94,7 @@ export default function LevelWordsPage() {
                   <p className="text-sm text-dyslexia-text-secondary">{w.phonetics}</p>
                 )}
                 <p className="mt-1 text-sm text-dyslexia-text-secondary leading-relaxed tracking-wide">
-                  Mastery: {Math.round(w.mastery_score * 100)}% · Attempts: {w.attempts}
+                  Mastery: {Math.round(w.mastery_score * 100)}% 
                   {w.is_mastered && (
                     <span className="ml-2 text-dyslexia-accent-green">✓ Mastered</span>
                   )}
