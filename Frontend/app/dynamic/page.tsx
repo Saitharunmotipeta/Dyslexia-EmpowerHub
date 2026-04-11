@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { type DynamicAnalyzeOut } from "@/lib/api";
+import { dynamicApi, type DynamicAnalyzeOut } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -30,6 +30,7 @@ export default function DynamicPage() {
   const [text, setText] = useState("");
   const [analyzed, setAnalyzed] = useState<DynamicAnalyzeOut | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evaluation, setEvaluation] = useState<PracticeEvaluation | null>(null);
   const [pace, setPace] = useState(100);
@@ -67,20 +68,11 @@ export default function DynamicPage() {
       return;
     }
     setLoading(true);
+    setLoadingStage("Analyzing text...");
     setError(null);
     try {
-      const res = await fetch(`${API}/dynamic/analyze`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ text: text.trim() }),
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-
-      setAnalyzed((await res.json()) as DynamicAnalyzeOut);
+      const analyzedData = await dynamicApi.analyze({ text: text.trim() });
+      setAnalyzed(analyzedData as DynamicAnalyzeOut);
       setEvaluation(null);
       reset();
       setStep(2);
@@ -88,6 +80,7 @@ export default function DynamicPage() {
       setError(err instanceof Error ? err.message : "Analyze failed");
     } finally {
       setLoading(false);
+      setLoadingStage(null);
     }
   };
 
@@ -99,29 +92,22 @@ export default function DynamicPage() {
       return;
     }
     setLoading(true);
+    setLoadingStage("Saving attempt...");
     setError(null);
     try {
-      const res = await fetch(`${API}/dynamic/attempt`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          text: text.trim(),
-          text_type: analyzed.type,
-          spoken: evaluation.recognized.trim() || " ",
-          score: evaluation.score ?? 0,
-          pace: 1,
-        }),
+      await dynamicApi.attempt({
+        text: text.trim(),
+        text_type: analyzed.type,
+        spoken: evaluation.recognized.trim() || " ",
+        score: evaluation.score ?? 0,
+        pace: 1,
       });
-
-      if (!res.ok) throw new Error(await res.text());
       setStep(5);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setLoading(false);
+      setLoadingStage(null);
     }
   };
 
@@ -162,6 +148,7 @@ export default function DynamicPage() {
     }
 
     setLoading(true);
+    setLoadingStage("Audio recorded. Analyzing speech...");
     setError(null);
     try {
       const expectedText = analyzed.words.join(" ");
@@ -180,6 +167,7 @@ export default function DynamicPage() {
       setError(err instanceof Error ? err.message : "Evaluation failed");
     } finally {
       setLoading(false);
+      setLoadingStage(null);
     }
   };
 
@@ -277,10 +265,6 @@ export default function DynamicPage() {
                 <Button type="submit" loading={loading} className="flex-1">
                   Analyze
                 </Button>
-
-                <Button type="button" onClick={playText}>
-                  🔊
-                </Button>
               </div>
             </form>
           </>
@@ -299,21 +283,41 @@ export default function DynamicPage() {
             <p className="text-dyslexia-text-secondary leading-relaxed tracking-wide">
               <span className="font-medium">Meaning:</span> {analyzed.meaning}
             </p>
-            <div className="flex gap-2">
-              <Button onClick={() => speak(analyzed.words.join(" "))}>
-                🔊 Play Word
-              </Button>
+            {/* AUDIO BUTTONS */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={() => speak(analyzed.words.join(" "))}
+              className="w-full justify-center"
+            >
+              🔊 Play Word
+            </Button>
 
-              <Button onClick={playMeaning} variant="secondary">
-                🔊 Play Meaning
-              </Button>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                Back
-              </Button>
-              <Button onClick={() => setStep(3)}>Next: Practice</Button>
-            </div>
+            <Button
+              onClick={playMeaning}
+              variant="secondary"
+              className="w-full justify-center"
+            >
+              🔊 Play Meaning
+            </Button>
+          </div>
+
+          {/* NAV BUTTONS */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setStep(1)}
+              className="w-full"
+            >
+              Back
+            </Button>
+
+            <Button
+              onClick={() => setStep(3)}
+              className="w-full"
+            >
+              Next: Practice
+            </Button>
+          </div>
           </>
         )}
 
@@ -439,6 +443,11 @@ export default function DynamicPage() {
         {error && (
           <p className="text-sm text-dyslexia-accent-purple" role="alert">
             {error}
+          </p>
+        )}
+        {loading && loadingStage && (
+          <p className="text-sm text-dyslexia-text-secondary" role="status">
+            {loadingStage}
           </p>
         )}
       </Card>

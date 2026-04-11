@@ -90,11 +90,8 @@ export default function LevelWordsPage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <p className="text-lg font-semibold text-dyslexia-text-primary leading-relaxed tracking-wide">{w.text}</p>
-                {w.phonetics && (
-                  <p className="text-sm text-dyslexia-text-secondary">{w.phonetics}</p>
-                )}
                 <p className="mt-1 text-sm text-dyslexia-text-secondary leading-relaxed tracking-wide">
-                  Mastery: {Math.round(w.mastery_score * 100)}% 
+                  Mastery: {Math.round(w.mastery_score <= 1 ? w.mastery_score * 100 : w.mastery_score)}%
                   {w.is_mastered && (
                     <span className="ml-2 text-dyslexia-accent-green">✓ Mastered</span>
                   )}

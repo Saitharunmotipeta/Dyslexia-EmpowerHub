@@ -21,19 +21,19 @@ export async function parseApiErrorMessage(res: Response): Promise<string> {
   try {
     const j = JSON.parse(text) as { detail?: unknown };
     if (typeof j.detail === "string") return j.detail;
+
     if (Array.isArray(j.detail)) {
       const msgs = j.detail
         .map((d: { msg?: string }) => d.msg)
         .filter((m): m is string => Boolean(m));
       if (msgs.length) return msgs.join("; ");
     }
-  } catch {
-    // use raw text
-  }
-  const trimmed = text.trim();
-  return trimmed || `Request failed (${res.status})`;
+  } catch {}
+
+  return text.trim() || `Request failed (${res.status})`;
 }
 
+/* ================= PRACTICE (OLD FLOW) ================= */
 export async function evaluatePracticeAudio(params: {
   token: string;
   wordId: number;
@@ -62,7 +62,7 @@ export async function evaluatePracticeAudio(params: {
   return (await res.json()) as PracticeEvaluation;
 }
 
-/** Dynamic learning: evaluate against user-provided text (no vocabulary word_id). */
+/* ================= DYNAMIC (FIXED VERSION) ================= */
 export async function evaluateDynamicAudio(params: {
   token: string;
   expectedText: string;
@@ -76,12 +76,12 @@ export async function evaluateDynamicAudio(params: {
   formData.append("expected_text", expectedText.trim());
   formData.append("file", audioBlob, filenameForAudioBlob(audioBlob));
 
-  const res = await fetch(`${API}/dynamic/evaluate`, {
+  const res = await fetch(`${API}/dynamic/evaluate-audio`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${token}`, // ✅ only this
     },
-    body: formData,
+    body: formData, // ✅ IMPORTANT: no JSON
   });
 
   if (!res.ok) {

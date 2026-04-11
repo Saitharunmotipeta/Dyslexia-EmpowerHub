@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { type MockStartResponse } from "@/lib/api";
@@ -16,12 +17,17 @@ import { assetUrl } from "@/constants/assets";
 
 const API = getPublicApiBaseUrl();
 
+const getImageWithFallback = (wordKey: string) => {
+  return [assetUrl(`${wordKey}.jpg`), assetUrl(`${wordKey}.png`)];
+};
+
 export default function MockRunPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const levelIdParam = searchParams.get("levelId");
   const levelId = levelIdParam ? parseInt(levelIdParam, 10) : null;
   const [imgError, setImgError] = useState(false);
+  const [imgIndex, setImgIndex] = useState(0);
 
   const { token, checked } = useAuth();
   const [data, setData] = useState<MockStartResponse | null>(null);
@@ -29,6 +35,7 @@ export default function MockRunPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [submittingStage, setSubmittingStage] = useState<string | null>(null);
   const {
     recording,
     audioBlob,
@@ -83,6 +90,11 @@ export default function MockRunPage() {
     reset();
   }, [currentIndex, reset]);
 
+  useEffect(() => {
+    setImgError(false);
+    setImgIndex(0);
+  }, [currentIndex]);
+
   const handleSubmitWord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!data || !currentWord) return;
@@ -91,6 +103,7 @@ export default function MockRunPage() {
       return;
     }
     setSubmitting(true);
+    setSubmittingStage("Uploading recording...");
     try {
       if (!audioBlob || audioBlob.size === 0) {
         setError("Recording was empty. Tap Record, speak, then Stop, and try again.");
@@ -106,6 +119,7 @@ export default function MockRunPage() {
         audioBlob,
         apiBaseUrl: API,
       });
+      setSubmittingStage("Analyzing pronunciation...");
 
       // -----------------------------
       // STEP 2: Submit recognized → /mock/word
@@ -124,6 +138,7 @@ export default function MockRunPage() {
       });
 
       if (!res.ok) throw new Error(await res.text());
+      setSubmittingStage("Saving answer...");
 
       if (isLast) {
         router.push(`/mock/result?public_attempt_id=${encodeURIComponent(data.public_attempt_id)}`);
@@ -134,6 +149,7 @@ export default function MockRunPage() {
       setError(err instanceof Error ? err.message : "Submit failed");
     } finally {
       setSubmitting(false);
+      setSubmittingStage(null);
     }
   };
 
@@ -170,14 +186,23 @@ export default function MockRunPage() {
   const wordKey = currentWord?.word
     ?.toLowerCase()
     .trim()
-    .replace(/\s+/g, "")
+    .replace(/\s+/g, "");
 
-  const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`) : null;
+  const imageCandidates = wordKey ? getImageWithFallback(wordKey) : [];
 
-  const finalImage = !imgError ? dynamicImage : null;
+  const currentWithImage = currentWord as typeof currentWord & { image_url?: string };
+  const finalImage =
+    currentWithImage?.image_url && currentWithImage.image_url.trim() !== "" && !imgError
+      ? currentWithImage.image_url
+      : imageCandidates[imgIndex];
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      <div className="mb-4">
+        <Link href="/mock" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+          ← Back to mock levels
+        </Link>
+      </div>
       <div className="mb-6 flex items-center justify-between">
         <span className="text-sm text-gray-600">
           Word {currentIndex + 1} of {data.words.length}
@@ -191,7 +216,13 @@ export default function MockRunPage() {
           src={finalImage}
           alt={currentWord?.word}
           className="h-full w-full object-contain rounded-xl"
-          onError={() => setImgError(true)}
+          onError={() => {
+            if (imgIndex < imageCandidates.length - 1) {
+              setImgIndex((prev) => prev + 1);
+            } else {
+              setImgError(true);
+            }
+          }}
         />
       ) : (
         <PlaceholderMedia type="image" label="Word image" />
@@ -243,6 +274,11 @@ export default function MockRunPage() {
         {error && (
           <p className="text-sm text-red-600" role="alert">
             {error}
+          </p>
+        )}
+        {submitting && submittingStage && (
+          <p className="text-sm text-gray-600" role="status">
+            {submittingStage}
           </p>
         )}
       </Card>
