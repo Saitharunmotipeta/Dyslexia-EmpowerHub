@@ -64,6 +64,9 @@ export default function MockReportPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      <Link href="/mock" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
+        ← Back to mock levels
+      </Link>
       <h1 className="text-3xl font-bold text-gray-900">Mock test report</h1>
       <p className="mt-1 text-gray-600">{data.message}</p>
 

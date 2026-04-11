@@ -89,13 +89,16 @@ export default function MockResultPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
+      <Link href="/mock" className="inline-flex items-center text-sm text-dyslexia-text-secondary hover:text-dyslexia-text-primary">
+        ← Back to mock levels
+      </Link>
       <CompletionPopup
         open={showMockCompletion}
         onClose={() => setShowMockCompletion(false)}
         imageSrc={assetUrl("mockcompletion.gif")}
         imageAlt="Mock test completion"
       >
-        {scorePct}% mastery. Report sent to mail
+        Score: {scorePct}%. Report sent to mail
       </CompletionPopup>
       <h1 className="text-3xl font-bold text-dyslexia-text-primary leading-relaxed tracking-wide">Mock test result</h1>
       <p className="mt-1 text-dyslexia-text-secondary leading-relaxed tracking-wide">{data.message}</p>
