@@ -55,7 +55,6 @@ export default function PracticePage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  // const [typedInput, setTypedInput] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
