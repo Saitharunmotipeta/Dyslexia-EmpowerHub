@@ -73,15 +73,19 @@ export async function evaluateDynamicAudio(params: {
   const API = apiBaseUrl ?? getPublicApiBaseUrl();
 
   const formData = new FormData();
+
+  // ✅ FIXED FIELD NAME
   formData.append("expected_text", expectedText.trim());
+
+  // ✅ correct file
   formData.append("file", audioBlob, filenameForAudioBlob(audioBlob));
 
-  const res = await fetch(`${API}/dynamic/evaluate-audio`, {
+  const res = await fetch(`${API}/dynamic/evaluate_audio`, { // ✅ FIXED ENDPOINT
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`, // ✅ only this
+      Authorization: `Bearer ${token}`,
     },
-    body: formData, // ✅ IMPORTANT: no JSON
+    body: formData,
   });
 
   if (!res.ok) {
