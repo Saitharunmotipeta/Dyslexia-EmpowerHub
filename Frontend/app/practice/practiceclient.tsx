@@ -271,7 +271,7 @@ export default function PracticePage() {
   .replace(/\s+/g, "")
   .replace(/[^a-z]/g, ""); 
  
-  const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`) : null;
+  const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`)||assetUrl(`${wordKey}.png`) : null;
 
   const finalImage =
   currentWord?.image_url && currentWord.image_url.trim() !== "" && !imgError
