@@ -22,6 +22,10 @@ const PACE_MAX = 100;
 const PACE_DEFAULT = 100;
 const API = getPublicApiBaseUrl();
 
+const getImageWithFallback = (wordKey: string) => {
+  return [assetUrl(`${wordKey}.jpg`), assetUrl(`${wordKey}.png`)];
+};
+
 export const dynamic = "force-dynamic";
 
 export default function PracticePage() {
@@ -34,12 +38,15 @@ export default function PracticePage() {
 
   const { token, checked } = useAuth();
   const [imgError, setImgError] = useState(false);
+  const [imgIndex, setImgIndex] = useState(0);
   const [currentWord, setCurrentWord] = useState<WordStatusOut | null>(null);
+  const [levelWords, setLevelWords] = useState<WordStatusOut[]>([]);
   const [pace, setPace] = useState(PACE_DEFAULT);
   const paceDebounced = useDebounce(pace, 300);
   const [recording, setRecording] = useState(false);
   const [result, setResult] = useState<FeedbackResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<string | null>(null);
   const [wordLoading, setWordLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWordCompletion, setShowWordCompletion] = useState(false);
@@ -48,7 +55,6 @@ export default function PracticePage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  // const [typedInput, setTypedInput] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -71,10 +77,14 @@ export default function PracticePage() {
     learning
       .getWordsForLevel(levelId)
       .then((words) => {
+        setLevelWords(words);
         const w = words.find((x) => x.id === wordId) ?? null;
         setCurrentWord(w);
       })
-      .catch(() => setCurrentWord(null))
+      .catch(() => {
+        setLevelWords([]);
+        setCurrentWord(null);
+      })
       .finally(() => setWordLoading(false));
   }, [token, wordId, levelId]);
 
@@ -136,6 +146,7 @@ export default function PracticePage() {
     if (!wordId) return;
 
     setLoading(true);
+    setLoadingStage("Uploading recording...");
     setError(null);
 
     try {
@@ -153,6 +164,7 @@ export default function PracticePage() {
         audioBlob,
         apiBaseUrl: API,
       });
+      setLoadingStage("Analyzing pronunciation...");
 
       // -----------------------------
       // STEP 2: AGGREGATE (intelligence layer)
@@ -179,6 +191,7 @@ export default function PracticePage() {
       }
 
       const aggData = await aggRes.json();
+      setLoadingStage("Preparing feedback...");
 
       // -----------------------------
       // STEP 3: MAP → UI MODEL (FeedbackResult)
@@ -218,6 +231,7 @@ export default function PracticePage() {
       );
     } finally {
       setLoading(false);
+      setLoadingStage(null);
     }
   }
 
@@ -260,8 +274,11 @@ export default function PracticePage() {
   }, [currentWord?.text, result?.expected, paceDebounced]);
 
   const displayWord =currentWord?.text ?? currentWord?.text ?? result?.expected ?? "";
+  const currentWordIndex = levelWords.findIndex((w) => w.id === wordId);
+  const nextWord = currentWordIndex >= 0 ? levelWords[currentWordIndex + 1] : null;
   useEffect(() => {
     setImgError(false);
+    setImgIndex(0);
   }, [displayWord]);
   if (!checked || !token) return null;
 
@@ -271,12 +288,12 @@ export default function PracticePage() {
   .replace(/\s+/g, "")
   .replace(/[^a-z]/g, ""); 
  
-  const dynamicImage = wordKey ? assetUrl(`${wordKey}.jpg`)||assetUrl(`${wordKey}.png`) : null;
+  const imageCandidates = wordKey ? getImageWithFallback(wordKey) : [];
 
   const finalImage =
-  currentWord?.image_url && currentWord.image_url.trim() !== "" && !imgError
-    ? currentWord.image_url
-    : dynamicImage;
+    currentWord?.image_url && currentWord.image_url.trim() !== "" && !imgError
+      ? currentWord.image_url
+      : imageCandidates[imgIndex];
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
@@ -309,7 +326,13 @@ export default function PracticePage() {
                   src={finalImage}
                   alt={displayWord}
                   className="h-full w-full object-contain rounded-xl"
-                  onError={() => setImgError(true)}
+                  onError={() => {
+                    if (imgIndex < imageCandidates.length - 1) {
+                      setImgIndex((prev) => prev + 1);
+                    } else {
+                      setImgError(true);
+                    }
+                  }}
                 />
               ) : (
                 <PlaceholderMedia
@@ -329,12 +352,6 @@ export default function PracticePage() {
                 {currentWord.phonetics}
               </p>
             )}
-            {currentWord?.syllables && (
-              <p className="text-center text-xl font-semibold text-dyslexia-text-primary sm:text-2xl leading-relaxed tracking-widest">
-                {currentWord.syllables}
-              </p>
-            )}
-
             {/* Play word (TTS) at current pace */}
             <div className="flex flex-wrap items-center gap-4">
               <Button
@@ -401,7 +418,7 @@ export default function PracticePage() {
               {loading && (
                 <div className="flex items-center gap-2 text-sm text-dyslexia-text-secondary mt-2">
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500"></div>
-                  Processing your response...
+                  {loadingStage ?? "Processing your response..."}
                 </div>
               )}
 
@@ -436,8 +453,16 @@ export default function PracticePage() {
           imageAlt="Word completion"
           variant="success"
         >
-          Yay! You reached {result?.score ?? 0}% mastery
+          Yay! You scored {result?.score ?? 0}%
         </CompletionPopup>
+        {showWordCompletion && nextWord && levelId && (
+          <Button
+            className="w-full"
+            onClick={() => router.push(`/practice?wordId=${nextWord.id}&levelId=${levelId}`)}
+          >
+            Next word
+          </Button>
+        )}
         <CompletionPopup
           open={showRetry}
           onClose={() => setShowRetry(false)}
