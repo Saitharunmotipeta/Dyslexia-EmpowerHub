@@ -11,6 +11,19 @@ class DynamicAnalyzeOut(BaseModel):
     words: List[str]
     meaning: str
 
+
+class DynamicEvaluateIn(BaseModel):
+    expected_text: str
+    recognized_text: str
+
+
+class DynamicEvaluateOut(BaseModel):
+    expected: str
+    recognized: str
+    score: float
+    is_correct: bool
+
+
 class DynamicAttemptCreate(BaseModel):
     text: str
     text_type: Literal["word", "sentence"]

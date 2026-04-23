@@ -34,6 +34,8 @@ export default function DynamicPage() {
   const [evaluation, setEvaluation] = useState<PracticeEvaluation | null>(null);
   const [pace, setPace] = useState(100);
   const [imgError, setImgError] = useState(false);
+  const [feedback, setFeedback] = useState<any>(null);
+  const [attempts, setAttempts] = useState(1);
 
   const {
     recording,
@@ -93,13 +95,16 @@ export default function DynamicPage() {
 
   const handleSaveAttempt = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!analyzed || !evaluation) return;
     if (!token) {
       setError("Not authenticated.");
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch(`${API}/dynamic/attempt`, {
         method: "POST",
@@ -108,15 +113,20 @@ export default function DynamicPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          text: text.trim(),
+          text: analyzed.words.join(" "),
           text_type: analyzed.type,
           spoken: evaluation.recognized.trim() || " ",
           score: evaluation.score ?? 0,
-          pace: 1,
+          pace: pace,
         }),
       });
 
       if (!res.ok) throw new Error(await res.text());
+
+      const data = await res.json();
+
+      console.log("Attempt ID:", data.attempt_id); // 🔥 you wanted this
+
       setStep(5);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
@@ -149,12 +159,13 @@ export default function DynamicPage() {
   };
   
   const playMeaning = () => {
-    if (!analyzed?.meaning) return;
-    speak(analyzed.meaning, 0.9);
-  };
+      if (!analyzed?.meaning) return;
+      speak(analyzed.meaning, 0.9);
+    };
 
   const handleEvaluateAudio = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!analyzed || !token) return;
     if (!audioBlob) {
       setError("Please record audio first.");
@@ -163,19 +174,97 @@ export default function DynamicPage() {
 
     setLoading(true);
     setError(null);
-    try {
-      const expectedText = analyzed.words.join(" ");
 
-      const evalData = await evaluateDynamicAudio({
-        token,
-        expectedText,
-        audioBlob,
-        apiBaseUrl: API,
+    try {
+      const expected_text = analyzed.words.join(" ");
+
+      // -------------------------------
+      // 1. SPEECH SERVICE
+      // -------------------------------
+      const formData = new FormData();
+      formData.append("file", audioBlob);
+
+      const speechRes = await fetch(
+        process.env.NEXT_PUBLIC_SPEECH_SERVICE_URL!,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const speechData = await speechRes.json();
+
+      const recognized_text =
+        speechData.recognized_text ||
+        speechData.text ||
+        speechData.transcript ||
+        "";
+
+      if (!recognized_text) {
+        throw new Error("No speech recognized");
+      }
+
+      // -------------------------------
+      // 2. DYNAMIC EVALUATE
+      // -------------------------------
+      const evalRes = await fetch(`${API}/dynamic/evaluate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          expected_text,
+          recognized_text,
+        }),
       });
 
+      if (!evalRes.ok) {
+        throw new Error(await evalRes.text());
+      }
+
+      const evalData = await evalRes.json();
+
       setEvaluation(evalData);
+
+      const getContentType = (text: string) => {
+        const wordCount = text.trim().split(/\s+/).length;
+
+        if (wordCount === 1) return "word";
+        if (wordCount <= 5) return "phrase";
+        return "sentence";
+      };
+
+      const type = analyzed.type;
+      const newAttempts = attempts + 1;
+      setAttempts(newAttempts);
+
+
+      // -------------------------------
+      // 3. FEEDBACK AGGREGATE
+      // -------------------------------
+      const feedbackRes = await fetch(`${API}/feedback/aggregate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          mode: "dynamic",                     
+          content_type: type,                 
+          text: evalData.expected,            
+          spoken: evalData.recognized,        
+          score: evalData.score,              
+          attempts: newAttempts,                 
+        }),
+      });
+
+      const feedbackData = await feedbackRes.json();
+      setFeedback(feedbackData);
+
       reset();
       setStep(4);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Evaluation failed");
     } finally {
