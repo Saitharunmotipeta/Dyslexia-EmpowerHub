@@ -139,6 +139,7 @@ export default function DynamicPage() {
 
   const progressPct = (step / STEPS) * 100;
 
+
   const speak = (text: string, rate = pace / 100) => {
     if (!text || typeof window === "undefined") return;
   
@@ -185,7 +186,7 @@ export default function DynamicPage() {
       formData.append("file", audioBlob);
 
       const speechRes = await fetch(
-        process.env.NEXT_PUBLIC_SPEECH_SERVICE_URL!,
+        process.env.SPEECH_SERVICE_URL!,
         {
           method: "POST",
           body: formData,
