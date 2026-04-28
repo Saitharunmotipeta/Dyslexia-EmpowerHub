@@ -2,7 +2,7 @@ import requests
 import os
 from fastapi import UploadFile
 
-SPEECH_URL = os.getenv("SPEECH_SERVICE_URL")
+SPEECH_URL = os.getenv("NEXT_PUBLIC_SPEECH_SERVICE_URL")
 
 
 def recognize_speech(file: UploadFile):
