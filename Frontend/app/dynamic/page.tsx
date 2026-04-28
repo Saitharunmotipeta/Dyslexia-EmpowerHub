@@ -186,12 +186,13 @@ export default function DynamicPage() {
       formData.append("file", audioBlob);
 
       const speechRes = await fetch(
-        process.env.SPEECH_SERVICE_URL!,
+        process.env.NEXT_PUBLIC_SPEECH_SERVICE_URL!,
         {
           method: "POST",
           body: formData,
         }
       );
+      console.log("Speech service " + process.env.NEXT_PUBLIC_SPEECH_SERVICE_URL!);
 
       const speechData = await speechRes.json();
 
