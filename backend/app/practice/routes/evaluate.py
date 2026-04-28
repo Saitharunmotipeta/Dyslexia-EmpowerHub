@@ -19,6 +19,7 @@ def evaluate_practice(
     """
     PRACTICE = AUDIO → SPEECH → EVALUATION + TRACKING
     """
+    # print("asdfg")
 
     # -------------------------
     # 1️⃣ Fetch word
@@ -26,7 +27,6 @@ def evaluate_practice(
     word = db.query(Word).filter(Word.id == word_id).first()
     if not word:
         raise HTTPException(status_code=404, detail="Word not found")
-
     expected = word.text
 
     # -------------------------
@@ -45,6 +45,7 @@ def evaluate_practice(
         )
 
     try:
+        # print("asdfgh")
         speech_result = recognize_speech(file)
     except Exception as e:
         raise HTTPException(
