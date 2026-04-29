@@ -14,10 +14,8 @@ dyslexia-learning-platform/
 │   ├── app/
 │   ├── media/
 │   └── README.md
-│
-├── softwaremodels/
-└── frontend/
-    └── README.md   (coming soon)
+└── frontend
+    └── README.md   
 ```
 
 Each major part of the system is **self-contained** and documented in its own README.
@@ -97,4 +95,4 @@ The system is designed to make sense **one module at a time**.
 
 ---
 
-Live app -- https://dyslexia-empowerhub.vercel.app (still in development)
+Live app -- https://dyslexia-empowerhub.vercel.app
