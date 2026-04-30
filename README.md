@@ -1,100 +1,234 @@
-# 🧠 Dyslexia Learning Platform...
+# 🧠 Dyslexia EmpowerHub
 
-A full-stack learning platform designed to support **dyslexic learners** through thoughtful speech practice, structured learning, and confidence-building assessments.
-
-This repository contains **both backend and frontend codebases**, each documented independently.
+A modular, pipeline-driven learning platform designed to improve pronunciation, confidence, and speech clarity through structured evaluation and intelligent feedback.
 
 ---
 
-## 📁 Repository Structure
+## 🎯 Overview
 
-```
-dyslexia-learning-platform/
-├── backend/
-│   ├── app/
-│   ├── media/
-│   └── README.md
-│
-├── softwaremodels/
-└── frontend/
-    └── README.md   (coming soon)
-```
+Dyslexia EmpowerHub is built as a **Modular Monolithic System** that focuses on **architecture, data flow, and intelligent feedback pipelines** rather than just features.
 
-Each major part of the system is **self-contained** and documented in its own README.
+The system processes user input (speech/text) through multiple engines to generate **context-aware feedback and recommendations**.
 
 ---
 
-## 🔙 Backend
+## 🏗️ Architecture
 
-The backend is a **FastAPI + PostgreSQL** system responsible for:
+This system is designed as a **modular monolith** with two major subsystems:
 
-* authentication & authorization
-* learning and practice flows
-* mock tests & reports
-* speech processing (STT, TTS)
-* phoneme-aware evaluation
-* feedback & recommendation engines
-
-👉 **See [`backend/README.md`] for full backend details**, architecture, and API documentation.
+- Learning Pipeline (Speech + Evaluation + RAG)
+- Engine-Based Chatbot (Intent → Engine Routing)
 
 ---
 
-## 🎨 Frontend (Coming Soon)
+### 🔹 Learning Pipeline Architecture
 
-The frontend will handle:
-
-* learner experience & UI
-* accessibility-first design
-* audio interaction & playback
-* progress visualization
-* report downloads
-
-👉 **See [`frontend/README.md`] for frontend setup and design decisions** (to be added).
+![Learning Pipeline](./assets/learning-pipeline.png)
 
 ---
 
-## 🧭 How to Navigate This Repo
+### 🔹 Chatbot Architecture (Engine-Based)
 
-* Start at the **backend README** if you’re working on APIs or data flows
-* Start at the **frontend README** if you’re working on UI/UX
-* Each module inside backend (`learning`, `practice`, `mock`, etc.) has its own structure and documentation
-* No single “god document” — each part explains itself
+![Chatbot Architecture](./assets/chatbot-architecture.png)
 
 ---
 
-## 💙 Design Philosophy
+## 🔄 Learning Pipeline Flow
 
-* supportive, non-punitive learning
-* clarity over complexity
-* scalable without overengineering
-* learner confidence comes first
+Two flows exist inside a single pipeline:
 
-This project is built to grow — technically and humanly.
+### 1. Static Learning Flow
 
----
-
-## 🤝 Contributing
-
-* Read the README inside the area you’re working on
-* Keep modules isolated
-* Do not break existing endpoints
-* Prefer small, incremental improvements
-* Preserve the supportive tone throughout the system
+Audio → Speech Service → Recognized Text → Evaluate → Similarity Score
 
 ---
 
-## 📌 Final Note
+### 2. Dynamic Learning Flow
 
-This repository is intentionally **modular**.
-
-If you’re exploring it for the first time:
-
-* don’t rush
-* open the READMEs
-* follow the structure
-
-The system is designed to make sense **one module at a time**.
+Text → Analyze → Audio → Speech → Evaluate → Similarity Score
 
 ---
 
-Live app -- https://dyslexia-empowerhub.vercel.app (still in development)
+### 🧠 RAG Layer (Core Intelligence)
+
+After evaluation:
+
+Fetch Previous Attempts + Scores + History  
+↓  
+Pattern Detection  
+↓  
+Trend Analysis  
+↓  
+Context Builder  
+↓  
+LLM → Feedback + Recommendation  
+
+---
+
+### 🗄️ Storage
+
+Tracks:
+
+- Attempts  
+- Scores  
+- Mastery Progress  
+- Login History  
+- Recommended Words  
+
+---
+
+## 🤖 Chatbot System (Engine-Based)
+
+The chatbot is an **independent module** integrated into the backend.
+
+### Flow
+
+User Input → Intent Detection → Engine Routing → Execute Engine → Response  
+
+---
+
+### 🧠 Engine Design
+
+Each intent maps to a specific engine.
+
+#### 🔹 LLM-Based Engines
+
+| Intent | Engine | Prompt |
+|--------|--------|--------|
+| Resume / Last Activity | resume_engine | resume.txt |
+| Feedback Analysis | word_similarity_engine | feedback.txt |
+| Performance Summary | aggregate_engine | progress.txt |
+| General Queries | general_engine | general.txt |
+
+These follow:
+
+Prompt + Context → LLM → Response
+
+---
+
+#### 🔹 Non-LLM Engines
+
+- Fetch data directly from DB  
+- Format structured responses  
+
+This reduces:
+
+- unnecessary LLM calls  
+- latency  
+- cost  
+
+---
+
+### ⚡ Key Idea
+
+> Not every query hits the LLM.  
+> Only **intelligent queries** use it.
+
+---
+
+## 🔁 End-to-End Flow
+
+Input → STT → Evaluate → Similarity → RAG → LLM → Feedback → Store → Recommend  
+
+---
+
+## 🚀 Features
+
+- Real-time speech evaluation  
+- Dual learning pipelines (static + dynamic)  
+- RAG-based feedback and recommendation  
+- Engine-based chatbot with intent routing  
+- Conditional LLM usage (optimized)  
+- Self-hosted speech recognition (VOSK)  
+- Attempt tracking and progress analysis  
+
+---
+
+## 🧠 Core Concepts Used
+
+- Modular Monolith Architecture  
+- Pipeline-Based Processing  
+- Intent Detection  
+- Similarity Algorithms  
+- Alignment Logic  
+- RAG (Retrieval-Augmented Generation)  
+- Conditional LLM Invocation  
+
+---
+
+## 🏗️ Tech Stack
+
+### Backend
+- FastAPI  
+- SQLAlchemy  
+- PostgreSQL  
+
+### Frontend
+- Next.js  
+
+### AI / Processing
+- HuggingFace (Self-hosted STT - VOSK)  
+- OpenRouter (LLM)  
+
+### Infrastructure
+- Docker  
+- Render (Backend + Speech Service)  
+- Vercel (Frontend)  
+
+---
+
+## ⚠️ Challenges Faced
+
+- CORS issues during frontend-backend integration  
+- Environment variable separation (frontend vs backend)  
+- Speech service cold starts (Render free tier)  
+- Audio processing and noise handling  
+- Inter-service communication failures  
+
+---
+
+## 👨‍💻 My Contribution
+
+- Backend architecture design  
+- AI/RAG pipeline implementation  
+- Chatbot engine system  
+- Database design and integration  
+- Service orchestration  
+
+---
+
+## 📷 Screenshots
+
+### 🔹 Dynamic Learning (AI Evaluation)
+![Dynamic Learning](./assets/dynamic-ui.png)
+
+---
+
+### 🔹 Voice Practice & Feedback
+![Voice Practice](./assets/practice-ui.png)
+
+---
+
+## 🔗 Links
+
+- Live App: (add)  
+- Backend API: (add)  
+- Speech Service: (add)  
+- Demo Video: (optional)  
+
+---
+
+## 🚀 Future Improvements
+
+- Move to microservices architecture  
+- Real-time streaming speech evaluation  
+- Embedding-based RAG (vector DB)  
+- Personalized adaptive learning  
+
+---
+
+## 🧠 Final Thought
+
+This project focuses on:
+
+> **How systems are designed, not just what they do**
