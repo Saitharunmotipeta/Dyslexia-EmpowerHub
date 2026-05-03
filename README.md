@@ -211,7 +211,7 @@ Input → STT → Evaluate → Similarity → RAG → LLM → Feedback → Store
 
 ## 🔗 Links
 
-- Live App: (add)  
+- Live App: https://dyslexia-empowerhub.vercel.app 
 - Backend API: (add)  
 - Speech Service: (add)  
 - Demo Video: (optional)  
