@@ -211,10 +211,9 @@ Input → STT → Evaluate → Similarity → RAG → LLM → Feedback → Store
 
 ## 🔗 Links
 
-- Live App: https://dyslexia-empowerhub.vercel.app 
-- Backend API: (add)  
-- Speech Service: (add)  
-- Demo Video: (optional)  
+- Live App: https://dyslexia-empowerhub.vercel.app
+- Backend API: https://dyslexia-empowerhub.onrender.com 
+- Speech Service: https://speech-service-o62k.onrender.com  
 
 ---
 
