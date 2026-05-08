@@ -218,8 +218,7 @@ Input → STT → Evaluate → Similarity → RAG → LLM → Feedback → Store
 ---
 
 ## 🚀 Future Improvements
-
-- Move to microservices architecture  
+ 
 - Real-time streaming speech evaluation  
 - Embedding-based RAG (vector DB)  
 - Personalized adaptive learning  
