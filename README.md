@@ -128,7 +128,7 @@ This reduces:
 
 ## 🔁 End-to-End Flow
 
-Input → STT → Evaluate → Similarity → RAG → LLM → Feedback → Store → Recommend  
+Input → STT → Evaluate → Similarity → RAG → LLM → Feedback → Store → Recommend → Return Response
 
 ---
 
